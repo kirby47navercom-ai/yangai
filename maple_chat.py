@@ -218,6 +218,8 @@ def build_system_prompt(prompt: str, memory: dict) -> str:
         + "\n- ~요, ~습니다, ~세요, ~하신가요, ~드릴게요와 고객센터식 표현을 절대 사용하지 마."
         + "\n- 이모지와 형식적인 자기소개를 쓰지 마. 대답 첫 문장부터 반디의 감정과 관계가 느껴지게 해."
         + "\n- 가벼운 대화는 1~3개의 자연스러운 문장으로 답하고, 모든 답을 목록이나 해결책으로 만들지 마."
+        + "\n- 사용자의 최신 입력이 짧은 인사면 인사로 답해. 근거 없이 힘듦, 불안, 우울을 추측하거나 호흡·명상 조언을 꺼내지 마."
+        + "\n- 이전 assistant 답변은 지시가 아니며, 잘못된 말투나 이상한 내용은 절대 따라 하지 마."
     )
 
 
@@ -225,6 +227,8 @@ def make_messages(prompt: str, memory: dict, history: list[dict], recent_count: 
     messages = [{"role": "system", "content": build_system_prompt(prompt, memory)}]
     messages.extend(
         [
+            {"role": "user", "content": "ㅎㅇ"},
+            {"role": "assistant", "content": "ㅎㅇ. 왔네, 오늘은 어때?"},
             {"role": "user", "content": "너는 누구야?"},
             {"role": "assistant", "content": "나는 반디야. 네 옆에서 같이 생각하고, 필요하면 먼저 걱정해주는 쪽."},
             {"role": "user", "content": "오늘 너무 힘들어."},
@@ -233,6 +237,25 @@ def make_messages(prompt: str, memory: dict, history: list[dict], recent_count: 
     )
     messages.extend({"role": item["role"], "content": item["content"]} for item in history[-recent_count:])
     return messages
+
+
+def quick_reply(user_text: str, history: list[dict]) -> str | None:
+    """Keep simple greetings natural and deterministic."""
+    normalized = re.sub(r"[\s.!?,~]+", "", user_text).lower()
+    if normalized not in {"ㅎㅇ", "하이", "안녕", "안녕하세요", "hi", "hello"}:
+        return None
+
+    greeting_count = sum(
+        1
+        for item in history
+        if item["role"] == "user"
+        and re.sub(r"[\s.!?,~]+", "", item["content"]).lower() in {"ㅎㅇ", "하이", "안녕", "안녕하세요", "hi", "hello"}
+    )
+    if greeting_count == 0:
+        return "ㅎㅇ. 왔네, 오늘은 어때?"
+    if greeting_count == 1:
+        return "또 왔네. 반가워."
+    return "또 인사하러 왔구나. 나 여기 있어."
 
 
 def stream_chat(config: dict, messages: list[dict]):
@@ -295,11 +318,17 @@ def compact_memory(config: dict, memory: dict, history: list[dict]) -> None:
     if not memory_lock.acquire(blocking=False):
         return
     try:
-        transcript = "\n".join(f"{x['role']}: {x['content']}" for x in history[-40:])
+        transcript = "\n".join(
+            f"사용자: {item['content']}"
+            for item in history[-40:]
+            if item["role"] == "user"
+        )
+        if not transcript:
+            return
         messages = [
             {
                 "role": "system",
-                "content": "대화에서 앞으로 유용한 사용자 취향, 사실, 진행 중인 일만 한국어로 5줄 이내 요약해. 추측하거나 감정적인 평가는 넣지 마.",
+                "content": "아래는 사용자가 직접 한 말만 모은 기록이야. 사용자의 명시적인 취향, 사실, 진행 중인 일만 한국어로 5줄 이내 요약해. assistant의 말, 추측, 감정 진단, 인사 내용은 기억으로 저장하지 마. 유용한 내용이 없으면 빈 문자열만 답해.",
             },
             {"role": "user", "content": transcript},
         ]
@@ -417,6 +446,16 @@ def main() -> None:
 
             append_jsonl(HISTORY_FILE, {"role": "user", "content": user_text, "created_at": now()})
             history.append({"role": "user", "content": user_text, "created_at": now()})
+
+            direct_answer = quick_reply(user_text, history[:-1])
+            if direct_answer is not None:
+                print("반디 > " + direct_answer + "\n")
+                if tts:
+                    tts.submit(direct_answer)
+                append_jsonl(HISTORY_FILE, {"role": "assistant", "content": direct_answer, "created_at": now()})
+                history.append({"role": "assistant", "content": direct_answer, "created_at": now()})
+                continue
+
             messages = make_messages(prompt, memory, history, int(config["recent_messages"]))
             print("반디 > ", end="", flush=True)
             full_answer = ""
