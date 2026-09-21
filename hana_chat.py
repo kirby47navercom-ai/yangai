@@ -670,11 +670,12 @@ def visible_window_handle(title: str) -> int | None:
 
 
 class ScreenWatcher:
-    def __init__(self, config: dict, context: ScreenContext, on_observation=None, on_error=None) -> None:
+    def __init__(self, config: dict, context: ScreenContext, on_observation=None, on_error=None, should_pause=None) -> None:
         self.config = config
         self.context = context
         self.on_observation = on_observation
         self.on_error = on_error
+        self.should_pause = should_pause
         self.stop_event = threading.Event()
         self.thread: threading.Thread | None = None
         self.last_error = ""
@@ -683,6 +684,7 @@ class ScreenWatcher:
         self.image_lock = threading.Lock()
         self.latest_image = ""
         self.request_lock = threading.Lock()
+        self.request_active = threading.Event()
 
     def start(self) -> bool:
         if self.thread and self.thread.is_alive():
@@ -701,6 +703,11 @@ class ScreenWatcher:
 
     def running(self) -> bool:
         return bool(self.thread and self.thread.is_alive())
+
+    def wait_for_request(self, timeout: float = 16) -> None:
+        deadline = time.monotonic() + max(0.0, timeout)
+        while self.request_active.is_set() and time.monotonic() < deadline:
+            time.sleep(0.05)
 
     def latest_image_data(self) -> str:
         with self.image_lock:
@@ -751,6 +758,9 @@ class ScreenWatcher:
                 else:
                     monitor = monitors[min(max(monitor_number, 1), len(monitors) - 1)]
                 while not self.stop_event.is_set():
+                    if self.should_pause and self.should_pause():
+                        self.stop_event.wait(0.2)
+                        continue
                     image = None
                     if self.config.get("screen_capture_mode") == "window":
                         title = str(self.config.get("screen_window_title", ""))
@@ -782,29 +792,36 @@ class ScreenWatcher:
                         if not previous
                         else "직전 화면 관찰:\n" + previous
                     )
-                    with self.request_lock:
-                        observation = one_shot(
-                            self.config,
-                            [
-                                {
-                                    "role": "user",
-                                    "content": (
-                                        "게임 방송 중인 버튜버가 참고할 화면 관찰이야. "
-                                        "앱 이름, 문서 제목, 게임 상태, 큰 글자처럼 화면을 식별할 수 있는 내용을 "
-                                        "우선 읽고, 현재 장면을 한두 문장으로 구체적으로 설명해. "
-                                        "직전 관찰과 비교해서 장면이 이어지는지, 무엇이 바뀌었는지, "
-                                        "그 변화가 방송 흐름에서 어떤 의미인지 함께 판단해. 변화가 없으면 "
-                                        "같은 장면을 매번 새 사건처럼 말하지 말고 현재 상태를 유지해. "
-                                        "반드시 자연스러운 한국어만 사용하고, 마크다운·목록·분석 과정·추측은 금지해. "
-                                        "작은 글자는 보이는 범위에서만 읽고, 읽기 어렵다고 화면 전체를 못 봤다고 하지 마.\n\n"
-                                        + continuity
-                                    ),
-                                }
-                            ],
-                            model=vision_model,
-                            images=[encoded],
-                            timeout=float(self.config.get("vision_response_timeout", 15)),
-                        )
+                    if self.should_pause and self.should_pause():
+                        self.stop_event.wait(0.2)
+                        continue
+                    self.request_active.set()
+                    try:
+                        with self.request_lock:
+                            observation = one_shot(
+                                self.config,
+                                [
+                                    {
+                                        "role": "user",
+                                        "content": (
+                                            "게임 방송 중인 버튜버가 참고할 화면 관찰이야. "
+                                            "앱 이름, 문서 제목, 게임 상태, 큰 글자처럼 화면을 식별할 수 있는 내용을 "
+                                            "우선 읽고, 현재 장면을 한두 문장으로 구체적으로 설명해. "
+                                            "직전 관찰과 비교해서 장면이 이어지는지, 무엇이 바뀌었는지, "
+                                            "그 변화가 방송 흐름에서 어떤 의미인지 함께 판단해. 변화가 없으면 "
+                                            "같은 장면을 매번 새 사건처럼 말하지 말고 현재 상태를 유지해. "
+                                            "반드시 자연스러운 한국어만 사용하고, 마크다운·목록·분석 과정·추측은 금지해. "
+                                            "작은 글자는 보이는 범위에서만 읽고, 읽기 어렵다고 화면 전체를 못 봤다고 하지 마.\n\n"
+                                            + continuity
+                                        ),
+                                    }
+                                ],
+                                model=vision_model,
+                                images=[encoded],
+                                timeout=float(self.config.get("vision_response_timeout", 15)),
+                            )
+                    finally:
+                        self.request_active.clear()
                     if self.stop_event.is_set():
                         return
                     if observation:

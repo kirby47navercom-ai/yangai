@@ -142,6 +142,7 @@ class HanaApp:
             self.screen_context,
             self._on_screen_observation,
             self._on_screen_error,
+            lambda: self.chat_busy.is_set() or not self.chat_queue.empty(),
         )
         self._build_ui()
         if self.tts and hasattr(self.tts, "set_status_callback"):
@@ -329,6 +330,7 @@ class HanaApp:
                 continue
             try:
                 self.chat_busy.set()
+                self.watcher.wait_for_request(float(self.config.get("vision_response_timeout", 15)) + 1)
                 if kind == "user":
                     self._answer_user(payload)
                 else:
