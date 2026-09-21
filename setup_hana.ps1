@@ -17,7 +17,7 @@ if (-not (Test-Path -LiteralPath $VenvPython)) {
     & $Python -m venv $Venv
 }
 
-& $VenvPython -m pip install --disable-pip-version-check --upgrade 'piper-tts==1.4.1' mss Pillow sounddevice faster-whisper
+& $VenvPython -m pip install --disable-pip-version-check --upgrade 'piper-tts==1.4.1' mss Pillow sounddevice faster-whisper pyinstaller
 if (-not (Test-Path -LiteralPath $VoiceModel)) {
     New-Item -ItemType Directory -Path $VoiceDir -Force | Out-Null
     & $VenvPython -m piper.download_voices --download-dir $VoiceDir $Config.piper_voice

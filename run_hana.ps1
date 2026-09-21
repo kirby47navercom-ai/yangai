@@ -13,4 +13,4 @@ if (-not (Test-Path -LiteralPath $VenvPython) -or -not (Test-Path -LiteralPath $
 if ($Ollama) { & $Ollama list | Out-Null }
 
 # Piper는 하나 프로세스 안에서 직접 실행한다. 별도 서버와 드라이브 매핑이 없다.
-& $VenvPython (Join-Path $Root 'hana_chat.py')
+& $VenvPython (Join-Path $Root 'hana_app.py')

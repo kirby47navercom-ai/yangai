@@ -18,7 +18,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 CONFIG_FILE = ROOT / "config.json"
 PROMPT_FILE = ROOT / "hana_prompt.txt"
@@ -106,6 +106,13 @@ def read_config() -> dict:
         "stt_device": "cpu",
         "stt_compute_type": "int8",
         "listen_seconds": 6,
+        "mic_enabled": True,
+        "mic_threshold": 0.015,
+        "mic_chunk_seconds": 0.5,
+        "mic_silence_seconds": 1.0,
+        "screen_enabled": True,
+        "screen_proactive": True,
+        "screen_reaction_cooldown": 20,
     }
     defaults.update(config)
     return defaults
@@ -162,6 +169,7 @@ class TTSWorker:
         self.length_scale = length_scale
         self.items: queue.Queue[str | None] = queue.Queue()
         self.enabled = True
+        self.speaking = threading.Event()
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
 
@@ -180,10 +188,13 @@ class TTSWorker:
             if text is None:
                 return
             try:
+                self.speaking.set()
                 self._speak(text)
             except Exception as error:  # TTS failure must not kill the chat.
                 self.enabled = False
                 print(f"\n[TTS가 꺼졌어: {error}]", flush=True)
+            finally:
+                self.speaking.clear()
 
     def _speak(self, text: str) -> None:
         with tempfile.NamedTemporaryFile(prefix="hana_", suffix=".wav", dir=self.data_dir, delete=False) as file:
@@ -233,7 +244,6 @@ class SpeechRecognizer:
     def listen_once(self) -> str:
         import sounddevice as sd
 
-        model = self._load()
         sample_rate = 16_000
         print("\n마이크 듣는 중... 말하고 잠깐 기다려줘.", flush=True)
         audio = sd.rec(
@@ -243,8 +253,12 @@ class SpeechRecognizer:
             dtype="float32",
         )
         sd.wait()
+        return self.transcribe_audio(audio[:, 0])
+
+    def transcribe_audio(self, audio) -> str:
+        model = self._load()
         segments, _ = model.transcribe(
-            audio[:, 0],
+            audio,
             language="ko",
             beam_size=1,
             vad_filter=True,
@@ -267,12 +281,15 @@ class ScreenContext:
 
 
 class ScreenWatcher:
-    def __init__(self, config: dict, context: ScreenContext) -> None:
+    def __init__(self, config: dict, context: ScreenContext, on_observation=None) -> None:
         self.config = config
         self.context = context
+        self.on_observation = on_observation
         self.stop_event = threading.Event()
         self.thread: threading.Thread | None = None
         self.last_error = ""
+        self.last_observation = ""
+        self.last_emit_at = 0.0
 
     def start(self) -> bool:
         if self.thread and self.thread.is_alive():
@@ -327,6 +344,14 @@ class ScreenWatcher:
                     )
                     if observation:
                         self.context.update(observation)
+                        normalized = re.sub(r"\s+", " ", observation).strip()
+                        cooldown = float(self.config.get("screen_reaction_cooldown", 20))
+                        changed = normalized != self.last_observation
+                        allowed = time.monotonic() - self.last_emit_at >= cooldown
+                        if self.on_observation and changed and allowed:
+                            self.last_observation = normalized
+                            self.last_emit_at = time.monotonic()
+                            self.on_observation(observation)
                     self.stop_event.wait(interval)
         except Exception as error:
             self.last_error = str(error)
