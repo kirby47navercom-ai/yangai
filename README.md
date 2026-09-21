@@ -18,7 +18,7 @@ Piper는 하나 프로세스 안에서 직접 실행돼. 별도 음성 서버나
 
 대화 기록은 `data/history.jsonl`, 장기 기억은 `data/memory.json`에 저장돼. 8번 대화마다 오래된 대화를 짧게 요약해 기억에 보태고, 최근 대화는 즉시 문맥에 넣어.
 
-캐릭터와 관계 설정은 `hana_prompt.txt`, 속도와 모델은 `config.json`에서 바꿀 수 있어. 화면 관찰은 `qwen2.5vl:3b`, 음성 인식은 `faster-whisper`를 사용해. 하나는 의미 있는 화면 변화가 보이면 먼저 짧게 반응할 수 있어.
+캐릭터와 관계 설정은 `hana_prompt.txt`, 속도와 모델은 `config.json`에서 바꿀 수 있어. 화면 관찰은 `qwen3-vl:4b`, 음성 인식은 `faster-whisper`를 사용해. 하나는 화면에서 의미 있는 변화가 보이면 먼저 반응하고, 일정 시간 조용하면 방송 멘트도 자연스럽게 시작해. 화면 모델은 내부 추론 때문에 실제 판독까지 약 10초 안팎 걸릴 수 있어.
 
 EXE는 `build_hana.ps1`을 실행하면 `dist\Hana\Hana.exe`로 만들어져. `start_hana.bat`은 EXE가 있으면 EXE를 실행하고, 없으면 GUI Python 실행으로 넘어가.
 

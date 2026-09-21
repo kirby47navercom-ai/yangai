@@ -99,9 +99,10 @@ def read_config() -> dict:
         "recent_messages": 16,
         "summary_every_user_turns": 8,
         "auto_memory": True,
-        "vision_model": "qwen2.5vl:3b",
-        "screen_interval": 8,
-        "screen_monitor": 1,
+        "vision_model": "qwen3-vl:4b",
+        "screen_interval": 5,
+        "screen_monitor": 0,
+        "vision_num_predict": 2048,
         "stt_model": "small",
         "stt_device": "cpu",
         "stt_compute_type": "int8",
@@ -112,7 +113,9 @@ def read_config() -> dict:
         "mic_silence_seconds": 1.0,
         "screen_enabled": True,
         "screen_proactive": True,
-        "screen_reaction_cooldown": 20,
+        "screen_reaction_cooldown": 15,
+        "idle_talk_enabled": True,
+        "idle_talk_seconds": 25,
     }
     defaults.update(config)
     return defaults
@@ -281,10 +284,11 @@ class ScreenContext:
 
 
 class ScreenWatcher:
-    def __init__(self, config: dict, context: ScreenContext, on_observation=None) -> None:
+    def __init__(self, config: dict, context: ScreenContext, on_observation=None, on_error=None) -> None:
         self.config = config
         self.context = context
         self.on_observation = on_observation
+        self.on_error = on_error
         self.stop_event = threading.Event()
         self.thread: threading.Thread | None = None
         self.last_error = ""
@@ -319,11 +323,14 @@ class ScreenWatcher:
             interval = max(3.0, float(self.config.get("screen_interval", 8)))
             with mss.MSS() as capture:
                 monitors = capture.monitors
-                monitor = monitors[min(max(monitor_number, 1), len(monitors) - 1)]
+                if monitor_number == 0:
+                    monitor = monitors[0]
+                else:
+                    monitor = monitors[min(max(monitor_number, 1), len(monitors) - 1)]
                 while not self.stop_event.is_set():
                     shot = capture.grab(monitor)
                     image = Image.frombytes("RGB", shot.size, shot.rgb)
-                    image.thumbnail((1280, 720))
+                    image.thumbnail((960, 540))
                     buffer = io.BytesIO()
                     image.save(buffer, format="JPEG", quality=65, optimize=True)
                     encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
@@ -333,9 +340,10 @@ class ScreenWatcher:
                             {
                                 "role": "user",
                                 "content": (
-                                    "이 화면을 게임 방송 중인 버튜버가 참고할 수 있게 관찰해. "
-                                    "보이는 게임 상태, 중요한 UI, 위험하거나 재미있는 변화만 "
-                                    "한국어로 짧게 적어. 보이지 않는 것은 추측하지 마."
+                                    "게임 방송 중인 버튜버가 참고할 화면 관찰이야. "
+                                    "보이는 장면에서 중요한 변화, 위험, 웃긴 상황만 한두 문장으로 말해. "
+                                    "반드시 자연스러운 한국어만 사용하고, 마크다운·목록·분석 과정·추측은 금지해. "
+                                    "화면에 특별한 변화가 없으면 정확히 '변화 없음'이라고만 말해."
                                 ),
                             }
                         ],
@@ -355,6 +363,8 @@ class ScreenWatcher:
                     self.stop_event.wait(interval)
         except Exception as error:
             self.last_error = str(error)
+            if self.on_error:
+                self.on_error(self.last_error)
 
 
 def build_system_prompt(prompt: str, memory: dict, screen_context: str = "") -> str:
@@ -479,13 +489,14 @@ def one_shot(config: dict, messages: list[dict], model: str | None = None, image
         messages = [dict(item) for item in messages]
         messages[-1] = dict(messages[-1])
         messages[-1]["images"] = images
+    num_predict = config.get("vision_num_predict", 768) if images else config.get("num_predict", 384)
     payload = {
         "model": model or config["model"],
         "messages": messages,
         "stream": False,
         "think": False,
         "keep_alive": config["keep_alive"],
-        "options": {"num_ctx": config["num_ctx"], "num_predict": 256, "temperature": 0.2},
+        "options": {"num_ctx": config["num_ctx"], "num_predict": num_predict, "temperature": 0.2},
     }
     result = request_json(config["ollama_url"].rstrip("/") + "/api/chat", payload, timeout=180)
     return result.get("message", {}).get("content", "").strip()

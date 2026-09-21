@@ -14,9 +14,10 @@
   "recent_messages": 16,
   "summary_every_user_turns": 8,
   "auto_memory": true,
-  "vision_model": "qwen2.5vl:3b",
-  "screen_interval": 8,
-  "screen_monitor": 1,
+  "vision_model": "qwen3-vl:4b",
+  "screen_interval": 5,
+  "screen_monitor": 0,
+  "vision_num_predict": 2048,
   "stt_model": "small",
   "stt_device": "cpu",
   "stt_compute_type": "int8",
@@ -27,5 +28,7 @@
   "mic_silence_seconds": 1.0,
   "screen_enabled": true,
   "screen_proactive": true,
-  "screen_reaction_cooldown": 20
+  "screen_reaction_cooldown": 15,
+  "idle_talk_enabled": true,
+  "idle_talk_seconds": 25
 }

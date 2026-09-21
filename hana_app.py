@@ -113,15 +113,24 @@ class HanaApp:
         self.history = load_history()
         self.user_turns = sum(1 for item in self.history if item["role"] == "user")
         self.stop_event = threading.Event()
+        self.chat_busy = threading.Event()
         self.chat_queue: queue.Queue[tuple[str, str]] = queue.Queue()
+        self.last_activity_at = time.monotonic()
         self.screen_context = ScreenContext()
         self.tts = self._create_tts()
         self.recognizer = SpeechRecognizer(self.config)
         self.mic = MicLoop(self.recognizer, self.tts, self._on_mic_text, self._on_mic_error, self.config)
-        self.watcher = ScreenWatcher(self.config, self.screen_context, self._on_screen_observation)
+        self.watcher = ScreenWatcher(
+            self.config,
+            self.screen_context,
+            self._on_screen_observation,
+            self._on_screen_error,
+        )
         self._build_ui()
         self.chat_thread = threading.Thread(target=self._chat_loop, daemon=True)
         self.chat_thread.start()
+        self.idle_thread = threading.Thread(target=self._idle_loop, daemon=True)
+        self.idle_thread.start()
         self.root.protocol("WM_DELETE_WINDOW", self.close)
         self.root.after(200, self._start_services)
 
@@ -220,13 +229,35 @@ class HanaApp:
         self.root.after(0, lambda: self._system(f"마이크를 사용할 수 없어: {error}"))
 
     def _on_screen_observation(self, observation: str) -> None:
+        self.last_activity_at = time.monotonic()
+        self.root.after(0, lambda: self.status.configure(text=f"화면 읽음: {observation[:32]}"))
         if self.config.get("screen_proactive", True):
             self.chat_queue.put(("screen", observation))
+
+    def _on_screen_error(self, error: str) -> None:
+        self.root.after(0, lambda: self._system(f"화면을 읽을 수 없어: {error or '알 수 없는 오류'}"))
+
+    def _idle_loop(self) -> None:
+        idle_seconds = max(10.0, float(self.config.get("idle_talk_seconds", 25)))
+        while not self.stop_event.wait(1.0):
+            if not self.config.get("idle_talk_enabled", True):
+                continue
+            if self.tts and self.tts.speaking.is_set():
+                continue
+            if self.chat_busy.is_set():
+                continue
+            if not self.chat_queue.empty():
+                continue
+            if time.monotonic() - self.last_activity_at < idle_seconds:
+                continue
+            self.last_activity_at = time.monotonic()
+            self.chat_queue.put(("idle", ""))
 
     def _queue_user(self, text: str, source: str = "입력") -> None:
         text = text.strip()
         if not text:
             return
+        self.last_activity_at = time.monotonic()
         self._line("너", text, "user")
         self.chat_queue.put(("user", text))
 
@@ -242,12 +273,18 @@ class HanaApp:
             except queue.Empty:
                 continue
             try:
+                self.chat_busy.set()
                 if kind == "user":
                     self._answer_user(payload)
-                else:
+                elif kind == "screen":
                     self._answer_screen(payload)
+                else:
+                    self._answer_idle()
             except Exception as error:
                 self.root.after(0, lambda error=error: self._system(f"응답을 만들 수 없어: {error}"))
+            finally:
+                self.last_activity_at = time.monotonic()
+                self.chat_busy.clear()
 
     def _answer_user(self, text: str) -> None:
         append_jsonl(HISTORY_FILE, {"role": "user", "content": text, "created_at": now()})
@@ -264,6 +301,30 @@ class HanaApp:
                     "방송 중에 화면에서 아래 변화가 보였어. 정말 반응할 만한 장면이면 하나의 말투로 짧게 반응해. "
                     "별일 아니거나 반복 관찰이면 [SILENT]만 출력해. 화면에 없는 내용은 만들지 마.\n\n"
                     + observation
+                ),
+            }
+        )
+        answer = "".join(stream_chat(self.config, messages)).strip()
+        if not answer or "[SILENT]" in answer.upper():
+            return
+        self.root.after(0, lambda: self._line("하나", answer, "hana"))
+        self._speak(answer)
+
+    def _answer_idle(self) -> None:
+        messages = make_messages(
+            self.prompt,
+            self.memory,
+            self.history,
+            int(self.config["recent_messages"]),
+            self.screen_context.read(),
+        )
+        messages.append(
+            {
+                "role": "user",
+                "content": (
+                    "방송 중인데 잠깐 조용했어. 하나가 지금 보고 있는 화면과 지금까지의 분위기를 바탕으로 "
+                    "억지 질문이나 상담 멘트가 아닌 짧은 방송 멘트를 하나만 자연스럽게 해. "
+                    "정말 말할 게 없으면 [SILENT]만 출력해."
                 ),
             }
         )
