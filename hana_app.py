@@ -9,7 +9,6 @@ from tkinter import scrolledtext
 
 from hana_chat import (
     DATA_DIR,
-    HISTORY_FILE,
     MEMORY_FILE,
     PROMPT_FILE,
     ROOT,
@@ -22,10 +21,12 @@ from hana_chat import (
     load_history,
     load_json,
     make_messages,
+    new_session_file,
     now,
     read_config,
     request_json,
     save_json,
+    start_memory_compaction,
     stream_chat,
 )
 
@@ -110,7 +111,8 @@ class HanaApp:
         self.config = read_config()
         self.prompt = PROMPT_FILE.read_text(encoding="utf-8") if PROMPT_FILE.exists() else "너는 하나야."
         self.memory = load_json(MEMORY_FILE, {"summary": "", "facts": [], "updated_at": ""})
-        self.history = load_history()
+        self.history_file = new_session_file()
+        self.history = load_history(self.history_file)
         self.user_turns = sum(1 for item in self.history if item["role"] == "user")
         self.stop_event = threading.Event()
         self.chat_busy = threading.Event()
@@ -289,7 +291,7 @@ class HanaApp:
                 self.chat_busy.clear()
 
     def _answer_user(self, text: str) -> None:
-        append_jsonl(HISTORY_FILE, {"role": "user", "content": text, "created_at": now()})
+        append_jsonl(self.history_file, {"role": "user", "content": text, "created_at": now()})
         self.history.append({"role": "user", "content": text, "created_at": now()})
         screen_context = self.screen_context.read()
         if self._is_screen_question(text):
@@ -299,6 +301,10 @@ class HanaApp:
                 screen_context = direct_observation
         messages = make_messages(self.prompt, self.memory, self.history, int(self.config["recent_messages"]), screen_context)
         self._stream_answer(messages, persist=True)
+        self.user_turns += 1
+        interval = int(self.config.get("summary_every_user_turns", 8))
+        if self.config.get("auto_memory", True) and interval > 0 and self.user_turns % interval == 0:
+            start_memory_compaction(self.config, self.memory, self.history)
 
     def _is_screen_question(self, text: str) -> bool:
         markers = ("화면", "보이", "보여", "뭐가", "공부", "읽어", "맞춰", "게임")
@@ -369,7 +375,7 @@ class HanaApp:
             raise
         if persist and full.strip():
             answer = full.strip()
-            append_jsonl(HISTORY_FILE, {"role": "assistant", "content": answer, "created_at": now()})
+            append_jsonl(self.history_file, {"role": "assistant", "content": answer, "created_at": now()})
             self.history.append({"role": "assistant", "content": answer, "created_at": now()})
 
     def _speak(self, text: str) -> None:

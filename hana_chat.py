@@ -24,6 +24,7 @@ CONFIG_FILE = ROOT / "config.json"
 PROMPT_FILE = ROOT / "hana_prompt.txt"
 MEMORY_FILE = DATA_DIR / "memory.json"
 HISTORY_FILE = DATA_DIR / "history.jsonl"
+SESSION_DIR = DATA_DIR / "sessions"
 
 
 def now() -> str:
@@ -50,12 +51,20 @@ def append_jsonl(path: Path, value) -> None:
         handle.write(json.dumps(value, ensure_ascii=False) + "\n")
 
 
-def load_history() -> list[dict]:
-    if not HISTORY_FILE.exists():
+def new_session_file() -> Path:
+    SESSION_DIR.mkdir(parents=True, exist_ok=True)
+    path = SESSION_DIR / f"session_{time.strftime('%Y%m%d_%H%M%S')}_{os.getpid()}.jsonl"
+    path.touch(exist_ok=True)
+    return path
+
+
+def load_history(path: Path | None = None) -> list[dict]:
+    history_file = path or HISTORY_FILE
+    if not history_file.exists():
         return []
     history = []
     try:
-        with HISTORY_FILE.open(encoding="utf-8") as handle:
+        with history_file.open(encoding="utf-8") as handle:
             for line in handle:
                 try:
                     item = json.loads(line)
