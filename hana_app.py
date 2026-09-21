@@ -492,7 +492,7 @@ class HanaApp:
 
         def refresh() -> None:
             window_titles.clear()
-            window_titles.extend(title for title, _bounds in list_visible_windows())
+            window_titles.extend(title for title, _bounds, _hwnd in list_visible_windows())
             listbox.delete(0, tk.END)
             for title in window_titles:
                 listbox.insert(tk.END, title)

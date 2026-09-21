@@ -599,7 +599,7 @@ class ScreenContext:
             return "\n".join(lines)
 
 
-def list_visible_windows() -> list[tuple[str, tuple[int, int, int, int]]]:
+def list_visible_windows() -> list[tuple[str, tuple[int, int, int, int], int]]:
     if os.name != "nt":
         return []
     import ctypes
@@ -615,7 +615,7 @@ def list_visible_windows() -> list[tuple[str, tuple[int, int, int, int]]]:
             ("bottom", wintypes.LONG),
         ]
 
-    windows: list[tuple[str, tuple[int, int, int, int]]] = []
+    windows: list[tuple[str, tuple[int, int, int, int], int]] = []
 
     @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
     def callback(hwnd, _lparam):
@@ -632,7 +632,7 @@ def list_visible_windows() -> list[tuple[str, tuple[int, int, int, int]]]:
             return True
         bounds = (rect.left, rect.top, rect.right, rect.bottom)
         if rect.right > rect.left and rect.bottom > rect.top:
-            windows.append((title, bounds))
+            windows.append((title, bounds, int(hwnd)))
         return True
 
     user32.EnumWindows(callback, 0)
@@ -643,7 +643,7 @@ def visible_window_region(title: str) -> dict[str, int] | None:
     wanted = title.strip().casefold()
     if not wanted:
         return None
-    for current_title, bounds in list_visible_windows():
+    for current_title, bounds, _hwnd in list_visible_windows():
         if current_title.casefold() != wanted:
             continue
         left, top, right, bottom = bounds
@@ -653,6 +653,16 @@ def visible_window_region(title: str) -> dict[str, int] | None:
             "width": right - left,
             "height": bottom - top,
         }
+    return None
+
+
+def visible_window_handle(title: str) -> int | None:
+    wanted = title.strip().casefold()
+    if not wanted:
+        return None
+    for current_title, _bounds, hwnd in list_visible_windows():
+        if current_title.casefold() == wanted:
+            return hwnd
     return None
 
 
@@ -725,7 +735,7 @@ class ScreenWatcher:
     def _run(self) -> None:
         try:
             import mss
-            from PIL import Image
+            from PIL import Image, ImageGrab
 
             vision_model = self.config.get("vision_model")
             monitor_number = int(self.config.get("screen_monitor", 1))
@@ -737,13 +747,23 @@ class ScreenWatcher:
                 else:
                     monitor = monitors[min(max(monitor_number, 1), len(monitors) - 1)]
                 while not self.stop_event.is_set():
-                    region = monitor
+                    image = None
                     if self.config.get("screen_capture_mode") == "window":
-                        selected = visible_window_region(str(self.config.get("screen_window_title", "")))
-                        if selected:
-                            region = selected
-                    shot = capture.grab(region)
-                    image = Image.frombytes("RGB", shot.size, shot.rgb)
+                        title = str(self.config.get("screen_window_title", ""))
+                        hwnd = visible_window_handle(title)
+                        if hwnd:
+                            try:
+                                image = ImageGrab.grab(window=hwnd, include_layered_windows=True)
+                            except Exception:
+                                image = None
+                    if image is None:
+                        region = monitor
+                        if self.config.get("screen_capture_mode") == "window":
+                            selected = visible_window_region(str(self.config.get("screen_window_title", "")))
+                            if selected:
+                                region = selected
+                        shot = capture.grab(region)
+                        image = Image.frombytes("RGB", shot.size, shot.rgb)
                     full_buffer = io.BytesIO()
                     image.save(full_buffer, format="JPEG", quality=82, optimize=True)
                     with self.image_lock:
