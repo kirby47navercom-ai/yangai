@@ -233,6 +233,7 @@ class HanaApp:
         self.root.after(0, lambda: self._system(f"마이크를 사용할 수 없어: {error}"))
 
     def _on_screen_observation(self, observation: str) -> None:
+        self.last_auto_activity_at = time.monotonic()
         self.root.after(0, lambda: self.status.configure(text=f"화면 읽음: {observation[:32]}"))
         if self.config.get("screen_proactive", True):
             self.chat_queue.put(("screen", observation))
@@ -316,14 +317,17 @@ class HanaApp:
             {
                 "role": "user",
                 "content": (
-                    "방송 중에 화면에서 아래 변화가 보였어. 정말 반응할 만한 장면이면 하나의 말투로 짧게 반응해. "
-                    "별일 아니거나 반복 관찰이면 [SILENT]만 출력해. 화면에 없는 내용은 만들지 마.\n\n"
+                    "방송 중인 하나가 방금 화면을 직접 봤어. 채팅이나 사용자 입력을 기다리지 말고, "
+                    "화면에 실제로 보이는 장면·앱·게임 상태·읽을 수 있는 글자 중 하나를 골라 "
+                    "게임 버튜버다운 짧은 방송 멘트를 한두 문장으로 반드시 먼저 말해. "
+                    "반복되는 화면이어도 현재 장면에 대한 감상이나 다음 흐름에 대한 기대를 말하고, "
+                    "[SILENT]를 출력하지 마. 화면에 없는 내용은 만들지 마.\n\n"
                     + observation
                 ),
             }
         )
         answer = "".join(stream_chat(self.config, messages)).strip()
-        if not answer or "[SILENT]" in answer.upper():
+        if not answer:
             return
         self.root.after(0, lambda: self._line("하나", answer, "hana"))
         self._speak(answer)

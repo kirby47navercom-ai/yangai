@@ -112,6 +112,7 @@ def read_config() -> dict:
         "screen_interval": 5,
         "screen_monitor": 0,
         "vision_num_predict": 2048,
+        "vision_question_num_predict": 4096,
         "stt_model": "small",
         "stt_device": "cpu",
         "stt_compute_type": "int8",
@@ -373,7 +374,8 @@ class ScreenWatcher:
                         "content": (
                             "현재 화면을 직접 보고 사용자의 질문에 답해. 화면에 실제로 보이는 앱, 문서, 게임, "
                             "코드, 큰 글자와 핵심 내용을 구체적으로 말해. 보이지 않는 것은 추측하지 말고, "
-                            "화면을 못 본다는 말로 회피하지 마. 반드시 자연스러운 한국어로만 짧게 답해. "
+                            "화면을 못 본다는 말로 회피하지 마. 마크다운 목록이나 분석 과정 없이 "
+                            "반드시 자연스러운 한국어로만 짧게 답해. "
                             "사용자 질문: "
                             + question
                         ),
@@ -381,6 +383,7 @@ class ScreenWatcher:
                 ],
                 model=self.config.get("vision_model"),
                 images=[image],
+                num_predict=int(self.config.get("vision_question_num_predict", 4096)),
             )
 
     def _run(self) -> None:
@@ -400,12 +403,14 @@ class ScreenWatcher:
                 while not self.stop_event.is_set():
                     shot = capture.grab(monitor)
                     image = Image.frombytes("RGB", shot.size, shot.rgb)
-                    image.thumbnail((960, 540))
-                    buffer = io.BytesIO()
-                    image.save(buffer, format="JPEG", quality=65, optimize=True)
-                    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+                    full_buffer = io.BytesIO()
+                    image.save(full_buffer, format="JPEG", quality=82, optimize=True)
                     with self.image_lock:
-                        self.latest_image = encoded
+                        self.latest_image = base64.b64encode(full_buffer.getvalue()).decode("ascii")
+                    image.thumbnail((1280, 720))
+                    buffer = io.BytesIO()
+                    image.save(buffer, format="JPEG", quality=75, optimize=True)
+                    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
                     with self.request_lock:
                         observation = one_shot(
                             self.config,
@@ -415,9 +420,9 @@ class ScreenWatcher:
                                     "content": (
                                         "게임 방송 중인 버튜버가 참고할 화면 관찰이야. "
                                         "앱 이름, 문서 제목, 게임 상태, 큰 글자처럼 화면을 식별할 수 있는 내용을 "
-                                        "우선 읽고, 중요한 변화·위험·웃긴 상황을 한두 문장으로 말해. "
+                                        "우선 읽고, 현재 장면을 한두 문장으로 구체적으로 설명해. "
                                         "반드시 자연스러운 한국어만 사용하고, 마크다운·목록·분석 과정·추측은 금지해. "
-                                        "화면에 특별한 변화가 없으면 정확히 '변화 없음'이라고만 말해."
+                                        "작은 글자는 보이는 범위에서만 읽고, 읽기 어렵다고 화면 전체를 못 봤다고 하지 마."
                                     ),
                                 }
                             ],
@@ -430,9 +435,8 @@ class ScreenWatcher:
                         self.context.update(observation)
                         normalized = re.sub(r"\s+", " ", observation).strip()
                         cooldown = float(self.config.get("screen_reaction_cooldown", 20))
-                        changed = normalized != self.last_observation
                         allowed = time.monotonic() - self.last_emit_at >= cooldown
-                        if self.on_observation and changed and allowed:
+                        if self.on_observation and allowed:
                             self.last_observation = normalized
                             self.last_emit_at = time.monotonic()
                             self.on_observation(observation)
@@ -560,19 +564,25 @@ def stream_chat(config: dict, messages: list[dict]):
                 break
 
 
-def one_shot(config: dict, messages: list[dict], model: str | None = None, images: list[str] | None = None) -> str:
+def one_shot(
+    config: dict,
+    messages: list[dict],
+    model: str | None = None,
+    images: list[str] | None = None,
+    num_predict: int | None = None,
+) -> str:
     if images:
         messages = [dict(item) for item in messages]
         messages[-1] = dict(messages[-1])
         messages[-1]["images"] = images
-    num_predict = config.get("vision_num_predict", 768) if images else config.get("num_predict", 384)
+    output_budget = num_predict or (config.get("vision_num_predict", 768) if images else config.get("num_predict", 384))
     payload = {
         "model": model or config["model"],
         "messages": messages,
         "stream": False,
         "think": False,
         "keep_alive": config["keep_alive"],
-        "options": {"num_ctx": config["num_ctx"], "num_predict": num_predict, "temperature": 0.2},
+        "options": {"num_ctx": config["num_ctx"], "num_predict": output_budget, "temperature": 0.2},
     }
     result = request_json(config["ollama_url"].rstrip("/") + "/api/chat", payload, timeout=180)
     return result.get("message", {}).get("content", "").strip()
