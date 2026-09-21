@@ -131,6 +131,7 @@ class HanaApp:
         self.last_idle_requested_at = 0.0
         self.screen_context = ScreenContext()
         self.tts = self._create_tts()
+        self.tts_status = ""
         self.recognizer = SpeechRecognizer(self.config)
         self.mic = MicLoop(self.recognizer, self.tts, self._on_mic_text, self._on_mic_error, self.config)
         self.watcher = ScreenWatcher(
@@ -140,6 +141,9 @@ class HanaApp:
             self._on_screen_error,
         )
         self._build_ui()
+        if self.tts and hasattr(self.tts, "prewarm"):
+            self.tts_status = "음성 모델 로딩 중..."
+            self.tts.prewarm(self._post_tts_status)
         self.chat_thread = threading.Thread(target=self._chat_loop, daemon=True)
         self.chat_thread.start()
         self.idle_thread = threading.Thread(target=self._idle_loop, daemon=True)
@@ -251,6 +255,15 @@ class HanaApp:
 
     def _on_screen_error(self, error: str) -> None:
         self.root.after(0, lambda: self._system(f"화면을 읽을 수 없어: {error or '알 수 없는 오류'}"))
+
+    def _on_tts_status(self, message: str) -> None:
+        self.tts_status = message
+        if message:
+            self.status.configure(text=message)
+
+    def _post_tts_status(self, message: str) -> None:
+        if not self.stop_event.is_set():
+            self.root.after(0, lambda: self._on_tts_status(message))
 
     def _idle_loop(self) -> None:
         delay = max(1.0, float(self.config.get("talk_after_speech_seconds", 3)))
@@ -464,7 +477,7 @@ class HanaApp:
             parts.append("화면")
         if self.tts and self.tts.enabled:
             parts.append("음성")
-        self.status.configure(text=" · ".join(parts) or "대기 중")
+        self.status.configure(text=self.tts_status or " · ".join(parts) or "대기 중")
         if not self.stop_event.is_set():
             self.root.after(1000, self._update_buttons)
 

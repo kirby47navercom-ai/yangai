@@ -325,6 +325,21 @@ class GPTSoVITSTTSWorker:
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
 
+    def prewarm(self, on_status=None) -> None:
+        threading.Thread(target=self._prewarm, args=(on_status,), daemon=True).start()
+
+    def _prewarm(self, on_status) -> None:
+        try:
+            if on_status:
+                on_status("음성 모델 로딩 중...")
+            self._ensure_server()
+            if on_status:
+                on_status("")
+        except Exception as error:
+            self.enabled = False
+            if on_status:
+                on_status(f"음성 준비 실패: {error}")
+
     def submit(self, text: str) -> None:
         text = clean_for_speech(text)
         if self.enabled and len(text) >= 2:
