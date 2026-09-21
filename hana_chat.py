@@ -258,7 +258,9 @@ class TTSWorker:
         with tempfile.NamedTemporaryFile(prefix="hana_", suffix=".wav", dir=self.data_dir, delete=False) as file:
             audio_path = Path(file.name)
 
-        player = shutil.which("ffplay")
+        player = str(Path(self.config.get("gpt_sovits_ffmpeg", "")) / "ffplay.exe")
+        if not Path(player).exists():
+            player = shutil.which("ffplay")
         if not player:
             audio_path.unlink(missing_ok=True)
             raise RuntimeError("ffplay를 찾을 수 없어")
