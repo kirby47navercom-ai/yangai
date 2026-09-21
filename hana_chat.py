@@ -449,6 +449,12 @@ class GPTSoVITSTTSWorker:
                 env={
                     **os.environ,
                     "PYTHONUTF8": "1",
+                    "NLTK_DATA": str(
+                        self.config.get(
+                            "gpt_sovits_nltk_data",
+                            self.root.parent / "nltk_data",
+                        )
+                    ),
                     "PATH": str(self.config.get("gpt_sovits_ffmpeg", ""))
                     + os.pathsep
                     + os.environ.get("PATH", ""),
