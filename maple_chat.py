@@ -235,13 +235,51 @@ def make_messages(prompt: str, memory: dict, history: list[dict], recent_count: 
             {"role": "assistant", "content": "그랬구나... 오늘은 많이 버거웠네. 얘기하고 싶으면 내가 들을게."},
         ]
     )
-    messages.extend({"role": item["role"], "content": item["content"]} for item in history[-recent_count:])
+    usable_history = [item for item in history if item["role"] == "user" or usable_assistant_history(item["content"])]
+    messages.extend({"role": item["role"], "content": item["content"]} for item in usable_history[-recent_count:])
     return messages
+
+
+def usable_assistant_history(text: str) -> bool:
+    """Do not let broken bot replies become character instructions."""
+    blocked = (
+        "나의 주된 능력",
+        "도와드릴",
+        "도와드리",
+        "무엇을 도와",
+        "필요한 도움이 있으면",
+        "필요한 시간이 있으면",
+        "숨을 깊",
+        "숨 쉬",
+        "吸入",
+        "吐出",
+        "오늘도 좋은 날",
+        "안녕하세요?",
+    )
+    if any(marker in text for marker in blocked):
+        return False
+    if re.search(r"[\u4e00-\u9fff]", text):
+        return False
+    if re.search(r"(?:요|습니다|세요|하신가요|드릴게요|도와드리|계신|보내셨)[.!?,~]?\s*$", text):
+        return False
+    return True
 
 
 def quick_reply(user_text: str, history: list[dict]) -> str | None:
     """Keep simple greetings natural and deterministic."""
     normalized = re.sub(r"[\s.!?,~]+", "", user_text).lower()
+
+    if normalized in {"넌누구야", "너는누구야", "너뭐야", "너는뭐야", "누구야"}:
+        return "나는 반디야. 병기로 태어나 전장에서 살아남았지만, 이제는 내 의지로 너와 지내는 삶을 고르고 있어."
+
+    if normalized in {
+        "넌어떤힘을가지고있어",
+        "너는어떤힘을가지고있어",
+        "어떤힘을가지고있어",
+        "무슨힘이있어",
+    }:
+        return "힘이라... 전장에서 익힌 눈과, 끝까지 버티는 의지는 있어. 하지만 내가 제일 지키고 싶은 건 네가 스스로 고를 수 있는 시간이야."
+
     if normalized not in {"ㅎㅇ", "하이", "안녕", "안녕하세요", "hi", "hello"}:
         return None
 
