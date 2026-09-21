@@ -25,7 +25,6 @@ PROMPT_FILE = ROOT / "hana_prompt.txt"
 MEMORY_FILE = DATA_DIR / "memory.json"
 HISTORY_FILE = DATA_DIR / "history.jsonl"
 SESSION_DIR = DATA_DIR / "sessions"
-ollama_lock = threading.Lock()
 
 
 def default_memory() -> dict:
@@ -118,9 +117,8 @@ def request_json(url: str, payload: dict | None = None, timeout: float = 30) -> 
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-    with ollama_lock:
-        with urlopen(request, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
+    with urlopen(request, timeout=timeout) as response:
+        return json.loads(response.read().decode("utf-8"))
 
 
 def read_config() -> dict:
@@ -145,7 +143,6 @@ def read_config() -> dict:
         "screen_monitor": 0,
         "vision_num_predict": 2048,
         "vision_question_num_predict": 4096,
-        "vision_response_timeout": 30,
         "stt_model": "small",
         "stt_device": "cpu",
         "stt_compute_type": "int8",
@@ -735,7 +732,6 @@ class ScreenWatcher:
                 model=self.config.get("vision_model"),
                 images=[image],
                 num_predict=int(self.config.get("vision_question_num_predict", 4096)),
-                timeout=float(self.config.get("vision_response_timeout", 30)),
             )
 
     def _run(self) -> None:
@@ -805,7 +801,6 @@ class ScreenWatcher:
                             ],
                             model=vision_model,
                             images=[encoded],
-                            timeout=float(self.config.get("vision_response_timeout", 30)),
                         )
                     if self.stop_event.is_set():
                         return
@@ -965,25 +960,24 @@ def stream_chat(
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with ollama_lock:
-        try:
-            response = urlopen(request, timeout=timeout)
-        except HTTPError as error:
-            detail = error.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"Ollama 오류 {error.code}: {detail[:300]}") from error
-        except URLError as error:
-            raise RuntimeError("Ollama가 실행 중이 아니야. 먼저 Ollama를 켜줘.") from error
+    try:
+        response = urlopen(request, timeout=timeout)
+    except HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Ollama 오류 {error.code}: {detail[:300]}") from error
+    except URLError as error:
+        raise RuntimeError("Ollama가 실행 중이 아니야. 먼저 Ollama를 켜줘.") from error
 
-        with response:
-            for raw_line in response:
-                if not raw_line.strip():
-                    continue
-                item = json.loads(raw_line.decode("utf-8"))
-                piece = item.get("message", {}).get("content", "")
-                if piece:
-                    yield piece
-                if item.get("done"):
-                    break
+    with response:
+        for raw_line in response:
+            if not raw_line.strip():
+                continue
+            item = json.loads(raw_line.decode("utf-8"))
+            piece = item.get("message", {}).get("content", "")
+            if piece:
+                yield piece
+            if item.get("done"):
+                break
 
 
 def one_shot(
@@ -992,7 +986,6 @@ def one_shot(
     model: str | None = None,
     images: list[str] | None = None,
     num_predict: int | None = None,
-    timeout: float = 180,
 ) -> str:
     if images:
         messages = [dict(item) for item in messages]
@@ -1007,7 +1000,7 @@ def one_shot(
         "keep_alive": config["keep_alive"],
         "options": {"num_ctx": config["num_ctx"], "num_predict": output_budget, "temperature": 0.2},
     }
-    result = request_json(config["ollama_url"].rstrip("/") + "/api/chat", payload, timeout=timeout)
+    result = request_json(config["ollama_url"].rstrip("/") + "/api/chat", payload, timeout=180)
     return result.get("message", {}).get("content", "").strip()
 
 
