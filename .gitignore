@@ -1,0 +1,8 @@
+.venv/
+voices/
+data/*.wav
+data/*.tmp
+data/piper_*.log
+piper_windows_amd64.zip
+piper_native/
+compat_d_drive/

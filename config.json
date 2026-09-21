@@ -1,0 +1,16 @@
+{
+  "model": "qwen3:4b",
+  "ollama_url": "http://127.0.0.1:11434",
+  "piper_model": "voices/ko_KR-kss-medium.onnx",
+  "piper_espeak_data": "%USERPROFILE%\\maple_espeak",
+  "tts_enabled": true,
+  "tts_length_scale": 0.9,
+  "num_ctx": 4096,
+  "num_predict": 384,
+  "temperature": 0.72,
+  "top_p": 0.9,
+  "keep_alive": "10m",
+  "recent_messages": 16,
+  "summary_every_user_turns": 8,
+  "auto_memory": true
+}
