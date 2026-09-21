@@ -360,8 +360,18 @@ class GPTSoVITSTTSWorker:
         self.thread.join(timeout=2)
         with self.server_lock:
             server = self.server_process if self.server_started_here else None
-        if server and server.poll() is None:
-            server.terminate()
+        if server:
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill", "/PID", str(server.pid), "/T", "/F"],
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                    check=False,
+                )
+            elif server.poll() is None:
+                server.terminate()
 
     def _run(self) -> None:
         while True:
