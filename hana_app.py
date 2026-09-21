@@ -8,6 +8,7 @@ from pathlib import Path
 from tkinter import scrolledtext
 
 from hana_chat import (
+    CONFIG_FILE,
     DATA_DIR,
     MEMORY_FILE,
     PROMPT_FILE,
@@ -23,6 +24,7 @@ from hana_chat import (
     load_history,
     load_latest_session_history,
     load_json,
+    list_visible_windows,
     make_messages,
     new_session_file,
     now,
@@ -214,6 +216,7 @@ class HanaApp:
         self.mic_button.pack(side="left")
         self.watch_button = tk.Button(buttons, command=self._toggle_watch, relief="flat", padx=10)
         self.watch_button.pack(side="left", padx=8)
+        tk.Button(buttons, text="화면 설정", command=self._configure_screen, relief="flat", padx=10).pack(side="left", padx=(0, 8))
         self.voice_button = tk.Button(buttons, command=self._toggle_voice, relief="flat", padx=10)
         self.voice_button.pack(side="left")
 
@@ -471,6 +474,66 @@ class HanaApp:
             self._system(f"화면 모델 {self.config.get('vision_model')}이 없어.")
         self._update_buttons()
 
+    def _configure_screen(self) -> None:
+        dialog = tk.Toplevel(self.root)
+        dialog.title("화면 보기 설정")
+        dialog.geometry("520x460")
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        mode = tk.StringVar(value=self.config.get("screen_capture_mode", "screen"))
+        tk.Label(dialog, text="하나가 볼 화면", font=("맑은 고딕", 12, "bold")).pack(anchor="w", padx=18, pady=(16, 8))
+        tk.Radiobutton(dialog, text="전체 화면", variable=mode, value="screen").pack(anchor="w", padx=18)
+        tk.Radiobutton(dialog, text="열려 있는 창 하나", variable=mode, value="window").pack(anchor="w", padx=18)
+
+        listbox = tk.Listbox(dialog, height=14, exportselection=False)
+        listbox.pack(fill="both", expand=True, padx=18, pady=10)
+        window_titles: list[str] = []
+
+        def refresh() -> None:
+            window_titles.clear()
+            window_titles.extend(title for title, _bounds in list_visible_windows())
+            listbox.delete(0, tk.END)
+            for title in window_titles:
+                listbox.insert(tk.END, title)
+            selected = self.config.get("screen_window_title", "")
+            if selected in window_titles:
+                listbox.selection_set(window_titles.index(selected))
+                listbox.see(window_titles.index(selected))
+
+        def update_state(*_args) -> None:
+            listbox.configure(state="normal" if mode.get() == "window" else "disabled")
+
+        def apply() -> None:
+            selected_title = self.config.get("screen_window_title", "")
+            if mode.get() == "window":
+                selection = listbox.curselection()
+                if not selection:
+                    self._system("볼 창을 하나 선택해줘.")
+                    return
+                selected_title = window_titles[selection[0]]
+            else:
+                selected_title = ""
+            self.config["screen_capture_mode"] = mode.get()
+            self.config["screen_window_title"] = selected_title
+            self.watcher.set_capture_target(mode.get(), selected_title)
+            save_json(CONFIG_FILE, self.config)
+            self._system(
+                "전체 화면을 볼게."
+                if mode.get() == "screen"
+                else f"이제 '{selected_title}' 창을 볼게. 창이 닫히면 바탕화면으로 전환할게."
+            )
+            self._update_buttons()
+            dialog.destroy()
+
+        mode.trace_add("write", update_state)
+        refresh()
+        update_state()
+        footer = tk.Frame(dialog)
+        footer.pack(fill="x", padx=18, pady=(0, 16))
+        tk.Button(footer, text="목록 새로고침", command=refresh, relief="flat", padx=10).pack(side="left")
+        tk.Button(footer, text="적용", command=apply, bg="#2563eb", fg="white", relief="flat", padx=18).pack(side="right")
+
     def _toggle_voice(self) -> None:
         if self.tts:
             self.tts.enabled = not self.tts.enabled
@@ -478,7 +541,11 @@ class HanaApp:
 
     def _update_buttons(self) -> None:
         self.mic_button.configure(text=f"마이크 {'켜짐' if self.mic.running() else '꺼짐'}")
-        self.watch_button.configure(text=f"화면 {'켜짐' if self.watcher.running() else '꺼짐'}")
+        if self.watcher.running():
+            capture_label = "창" if self.config.get("screen_capture_mode") == "window" else "전체"
+            self.watch_button.configure(text=f"화면({capture_label}) 켜짐")
+        else:
+            self.watch_button.configure(text="화면 꺼짐")
         self.voice_button.configure(text=f"음성 {'켜짐' if self.tts and self.tts.enabled else '꺼짐'}")
         parts = []
         if self.mic.running():

@@ -152,6 +152,8 @@ def read_config() -> dict:
         "mic_chunk_seconds": 0.5,
         "mic_silence_seconds": 1.0,
         "screen_enabled": True,
+        "screen_capture_mode": "screen",
+        "screen_window_title": "",
         "screen_proactive": True,
         "screen_reaction_cooldown": 15,
         "idle_talk_enabled": True,
@@ -594,7 +596,64 @@ class ScreenContext:
         for index, observation in enumerate(previous, start=1):
             label = "직전 관찰" if index == 1 else f"{index}번 전 관찰"
             lines.append(f"{label}: {observation}")
-        return "\n".join(lines)
+            return "\n".join(lines)
+
+
+def list_visible_windows() -> list[tuple[str, tuple[int, int, int, int]]]:
+    if os.name != "nt":
+        return []
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.windll.user32
+
+    class Rect(ctypes.Structure):
+        _fields_ = [
+            ("left", wintypes.LONG),
+            ("top", wintypes.LONG),
+            ("right", wintypes.LONG),
+            ("bottom", wintypes.LONG),
+        ]
+
+    windows: list[tuple[str, tuple[int, int, int, int]]] = []
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def callback(hwnd, _lparam):
+        if not user32.IsWindowVisible(hwnd) or user32.IsIconic(hwnd):
+            return True
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length <= 0:
+            return True
+        title_buffer = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, title_buffer, length + 1)
+        title = title_buffer.value.strip()
+        rect = Rect()
+        if not title or not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+            return True
+        bounds = (rect.left, rect.top, rect.right, rect.bottom)
+        if rect.right > rect.left and rect.bottom > rect.top:
+            windows.append((title, bounds))
+        return True
+
+    user32.EnumWindows(callback, 0)
+    return sorted(windows, key=lambda item: item[0].casefold())
+
+
+def visible_window_region(title: str) -> dict[str, int] | None:
+    wanted = title.strip().casefold()
+    if not wanted:
+        return None
+    for current_title, bounds in list_visible_windows():
+        if current_title.casefold() != wanted:
+            continue
+        left, top, right, bottom = bounds
+        return {
+            "left": left,
+            "top": top,
+            "width": right - left,
+            "height": bottom - top,
+        }
+    return None
 
 
 class ScreenWatcher:
@@ -633,6 +692,10 @@ class ScreenWatcher:
     def latest_image_data(self) -> str:
         with self.image_lock:
             return self.latest_image
+
+    def set_capture_target(self, mode: str, window_title: str = "") -> None:
+        self.config["screen_capture_mode"] = mode if mode in {"screen", "window"} else "screen"
+        self.config["screen_window_title"] = window_title.strip()
 
     def answer_question(self, question: str) -> str:
         image = self.latest_image_data()
@@ -674,7 +737,12 @@ class ScreenWatcher:
                 else:
                     monitor = monitors[min(max(monitor_number, 1), len(monitors) - 1)]
                 while not self.stop_event.is_set():
-                    shot = capture.grab(monitor)
+                    region = monitor
+                    if self.config.get("screen_capture_mode") == "window":
+                        selected = visible_window_region(str(self.config.get("screen_window_title", "")))
+                        if selected:
+                            region = selected
+                    shot = capture.grab(region)
                     image = Image.frombytes("RGB", shot.size, shot.rgb)
                     full_buffer = io.BytesIO()
                     image.save(full_buffer, format="JPEG", quality=82, optimize=True)

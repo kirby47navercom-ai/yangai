@@ -29,6 +29,8 @@
   "vision_model": "qwen3-vl:4b",
   "screen_interval": 5,
   "screen_monitor": 0,
+  "screen_capture_mode": "screen",
+  "screen_window_title": "",
   "vision_num_predict": 2048,
   "vision_question_num_predict": 4096,
   "stt_model": "small",
