@@ -17,7 +17,7 @@ if (-not (Test-Path -LiteralPath $VenvPython)) {
     & $Python -m venv $Venv
 }
 
-& $VenvPython -m pip install --disable-pip-version-check --upgrade 'piper-tts==1.4.1'
+& $VenvPython -m pip install --disable-pip-version-check --upgrade 'piper-tts==1.4.1' mss Pillow sounddevice faster-whisper
 if (-not (Test-Path -LiteralPath $VoiceModel)) {
     New-Item -ItemType Directory -Path $VoiceDir -Force | Out-Null
     & $VenvPython -m piper.download_voices --download-dir $VoiceDir $Config.piper_voice
@@ -32,6 +32,9 @@ Copy-Item -Path (Join-Path $PackageEspeak '*') -Destination $EspeakData -Recurse
 $modelNames = (& $Ollama list | Out-String)
 if ($modelNames -notmatch [regex]::Escape($Config.model)) {
     & $Ollama pull $Config.model
+}
+if ($modelNames -notmatch [regex]::Escape($Config.vision_model)) {
+    & $Ollama pull $Config.vision_model
 }
 
 Write-Host ''
