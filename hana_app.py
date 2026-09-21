@@ -18,6 +18,7 @@ from hana_chat import (
     SpeechRecognizer,
     TTSWorker,
     append_jsonl,
+    default_memory,
     load_history,
     load_json,
     make_messages,
@@ -26,6 +27,7 @@ from hana_chat import (
     read_config,
     request_json,
     save_json,
+    save_memory_snapshot,
     start_memory_compaction,
     stream_chat,
 )
@@ -110,7 +112,7 @@ class HanaApp:
         self.root.configure(bg="#111827")
         self.config = read_config()
         self.prompt = PROMPT_FILE.read_text(encoding="utf-8") if PROMPT_FILE.exists() else "너는 하나야."
-        self.memory = load_json(MEMORY_FILE, {"summary": "", "facts": [], "updated_at": ""})
+        self.memory = load_json(MEMORY_FILE, default_memory())
         self.history_file = new_session_file()
         self.history = load_history(self.history_file)
         self.user_turns = sum(1 for item in self.history if item["role"] == "user")
@@ -298,12 +300,12 @@ class HanaApp:
     def _answer_user(self, text: str) -> None:
         append_jsonl(self.history_file, {"role": "user", "content": text, "created_at": now()})
         self.history.append({"role": "user", "content": text, "created_at": now()})
-        screen_context = self.screen_context.read()
+        screen_context = self.screen_context.prompt()
         if self._is_screen_question(text):
             direct_observation = self.watcher.answer_question(text)
             if direct_observation:
                 self.screen_context.update(direct_observation)
-                screen_context = direct_observation
+                screen_context = self.screen_context.prompt()
         messages = make_messages(self.prompt, self.memory, self.history, int(self.config["recent_messages"]), screen_context)
         self._stream_answer(messages, persist=True)
         self.user_turns += 1
@@ -316,7 +318,7 @@ class HanaApp:
         return any(marker in text for marker in markers) and self.watcher.running()
 
     def _answer_screen(self, observation: str) -> None:
-        messages = make_messages(self.prompt, self.memory, self.history, int(self.config["recent_messages"]), self.screen_context.read())
+        messages = make_messages(self.prompt, self.memory, self.history, int(self.config["recent_messages"]), self.screen_context.prompt())
         messages.append(
             {
                 "role": "user",
@@ -344,7 +346,7 @@ class HanaApp:
             self.memory,
             self.history,
             int(self.config["recent_messages"]),
-            self.screen_context.read(),
+            self.screen_context.prompt(),
         )
         messages.append(
             {
@@ -352,7 +354,9 @@ class HanaApp:
                 "content": (
                     "하나가 방금 말을 마치고 3초 쉬었어. 방송을 계속 이어가야 해. "
                     "사용자나 채팅이 먼저 말을 걸 때까지 기다리지 말고, 하나가 지금 보고 있는 화면과 "
-                    "방송 분위기를 바탕으로 게임 버튜버다운 짧은 멘트를 한두 문장으로 반드시 자연스럽게 해. "
+                    "직전 하나의 말과 지금까지의 방송 흐름을 바탕으로 게임 버튜버다운 짧은 멘트를 한두 문장으로 반드시 자연스럽게 해. "
+                    "화면을 언급한다면 무엇이 보이는지만 읽지 말고, 그 장면을 보며 하나가 든 감정·판단·다음 기대까지 한 단계 이어서 말해. "
+                    "같은 장면이면 앞에서 시작한 생각을 발전시키고, 화면이 바뀌면 방금 전 흐름과 연결해서 말해. "
                     "화면에 특별한 일이 없으면 지금 방송 분위기나 하나의 가벼운 생각을 말하고, 질문으로 끝내지 마. "
                     "[SILENT]는 출력하지 마."
                 ),
@@ -361,6 +365,10 @@ class HanaApp:
         answer = "".join(stream_chat(self.config, messages)).strip()
         if not answer:
             return
+        created_at = now()
+        append_jsonl(self.history_file, {"role": "assistant", "content": answer, "created_at": created_at})
+        self.history.append({"role": "assistant", "content": answer, "created_at": created_at})
+        save_memory_snapshot(self.memory, self.history, self.screen_context.prompt())
         self.last_response_at = time.monotonic()
         self.root.after(0, lambda: self._line("하나", answer, "hana"))
         self._speak(answer)
@@ -388,6 +396,7 @@ class HanaApp:
             answer = full.strip()
             append_jsonl(self.history_file, {"role": "assistant", "content": answer, "created_at": now()})
             self.history.append({"role": "assistant", "content": answer, "created_at": now()})
+            save_memory_snapshot(self.memory, self.history, self.screen_context.prompt())
 
     def _speak(self, text: str) -> None:
         if self.tts:
@@ -456,6 +465,7 @@ class HanaApp:
     def close(self) -> None:
         if self.stop_event.is_set():
             return
+        save_memory_snapshot(self.memory, self.history, self.screen_context.prompt())
         self.stop_event.set()
         self.mic.stop()
         self.watcher.stop()
