@@ -371,6 +371,7 @@ class GPTSoVITSTTSWorker:
     def submit(self, text: str) -> None:
         text = clean_for_speech(text)
         if self.enabled and len(text) >= 2:
+            self._log(f"TTS 큐 등록: {text[:80]}")
             self.items.put(text)
 
     def close(self) -> None:
@@ -408,6 +409,7 @@ class GPTSoVITSTTSWorker:
                 return
             try:
                 self.speaking.set()
+                self._log(f"TTS 처리 시작: {text[:80]}")
                 self._speak(text)
             except Exception as error:
                 self.enabled = False
