@@ -143,6 +143,7 @@ def read_config() -> dict:
         "screen_monitor": 0,
         "vision_num_predict": 2048,
         "vision_question_num_predict": 4096,
+        "vision_response_timeout": 15,
         "stt_model": "small",
         "stt_device": "cpu",
         "stt_compute_type": "int8",
@@ -732,6 +733,7 @@ class ScreenWatcher:
                 model=self.config.get("vision_model"),
                 images=[image],
                 num_predict=int(self.config.get("vision_question_num_predict", 4096)),
+                timeout=float(self.config.get("vision_response_timeout", 15)),
             )
 
     def _run(self) -> None:
@@ -801,6 +803,7 @@ class ScreenWatcher:
                             ],
                             model=vision_model,
                             images=[encoded],
+                            timeout=float(self.config.get("vision_response_timeout", 15)),
                         )
                     if self.stop_event.is_set():
                         return
@@ -986,6 +989,7 @@ def one_shot(
     model: str | None = None,
     images: list[str] | None = None,
     num_predict: int | None = None,
+    timeout: float = 180,
 ) -> str:
     if images:
         messages = [dict(item) for item in messages]
@@ -1000,7 +1004,7 @@ def one_shot(
         "keep_alive": config["keep_alive"],
         "options": {"num_ctx": config["num_ctx"], "num_predict": output_budget, "temperature": 0.2},
     }
-    result = request_json(config["ollama_url"].rstrip("/") + "/api/chat", payload, timeout=180)
+    result = request_json(config["ollama_url"].rstrip("/") + "/api/chat", payload, timeout=timeout)
     return result.get("message", {}).get("content", "").strip()
 
 
