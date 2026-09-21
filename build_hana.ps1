@@ -27,6 +27,7 @@ try {
         --collect-all faster_whisper `
         --collect-all ctranslate2 `
         --hidden-import sounddevice `
+        --hidden-import winsound `
         (Join-Path $Root 'hana_app.py')
 
     $BuiltDist = Join-Path $BuildDist 'Hana'

@@ -11,7 +11,7 @@
   "gpt_sovits_python": "C:\\Users\\kirby\\OneDrive\\바탕 화면\\v2ProPlus\\.venv312\\Scripts\\python.exe",
   "gpt_sovits_ffmpeg": "C:\\Users\\kirby\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg.Shared_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-9.0.1-full_build-shared\\bin",
   "gpt_sovits_config": "gpt_sovits_hana.yaml",
-  "gpt_sovits_port": 9880,
+  "gpt_sovits_port": 9881,
   "gpt_sovits_ref_audio": "C:\\Users\\kirby\\OneDrive\\바탕 화면\\v2ProPlus\\三月七\\reference_audios\\韩语\\emotions\\【中立】야릴로-Ⅵ는 스텔라론도 버텼는데 별일 있겠어_ 쓸데없는 걱정은 넣어둬~.wav",
   "gpt_sovits_ref_text": "야릴로-Ⅵ는 스텔라론도 버텼는데 별일 있겠어? 쓸데없는 걱정은 넣어둬~.",
   "gpt_sovits_text_lang": "ko",

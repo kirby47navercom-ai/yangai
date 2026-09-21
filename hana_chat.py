@@ -199,6 +199,29 @@ class SentenceBuffer:
         return [text] if text else []
 
 
+def play_wav_file(audio_path: Path, stop_event: threading.Event | None = None) -> None:
+    """Play a generated WAV through the Windows default output device."""
+    if os.name != "nt":
+        raise RuntimeError("윈도우 기본 오디오 재생은 윈도우에서만 지원해")
+    import winsound
+
+    with wave.open(str(audio_path), "rb") as wav_file:
+        frame_rate = wav_file.getframerate()
+        frame_count = wav_file.getnframes()
+    if frame_rate <= 0 or frame_count <= 0:
+        raise RuntimeError("생성된 음성 파일이 비어 있어")
+
+    winsound.PlaySound(str(audio_path), winsound.SND_FILENAME | winsound.SND_ASYNC)
+    deadline = time.monotonic() + (frame_count / frame_rate) + 0.15
+    try:
+        while time.monotonic() < deadline:
+            if stop_event and stop_event.is_set():
+                break
+            time.sleep(0.05)
+    finally:
+        winsound.PlaySound(None, winsound.SND_PURGE)
+
+
 class TTSWorker:
     def __init__(self, model_path: Path, data_dir: Path, length_scale: float, espeak_data: Path) -> None:
         os.environ["ESPEAK_DATA_PATH"] = str(espeak_data)
@@ -237,6 +260,13 @@ class TTSWorker:
             process = self.process
         if process and process.poll() is None:
             process.terminate()
+        if os.name == "nt":
+            try:
+                import winsound
+
+                winsound.PlaySound(None, winsound.SND_PURGE)
+            except Exception:
+                pass
         self.thread.join(timeout=1)
 
     def _run(self) -> None:
@@ -258,12 +288,6 @@ class TTSWorker:
         with tempfile.NamedTemporaryFile(prefix="hana_", suffix=".wav", dir=self.data_dir, delete=False) as file:
             audio_path = Path(file.name)
 
-        player = str(Path(self.config.get("gpt_sovits_ffmpeg", "")) / "ffplay.exe")
-        if not Path(player).exists():
-            player = shutil.which("ffplay")
-        if not player:
-            audio_path.unlink(missing_ok=True)
-            raise RuntimeError("ffplay를 찾을 수 없어")
         try:
             from piper import SynthesisConfig
 
@@ -275,27 +299,7 @@ class TTSWorker:
                 )
             if self.stop_event.is_set():
                 return
-            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
-            process = subprocess.Popen(
-                [player, "-nodisp", "-autoexit", "-loglevel", "quiet", str(audio_path)],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                creationflags=creationflags,
-            )
-            with self.process_lock:
-                self.process = process
-            if self.stop_event.is_set() and process.poll() is None:
-                process.terminate()
-            try:
-                process.wait(timeout=60)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=2)
-            finally:
-                with self.process_lock:
-                    if self.process is process:
-                        self.process = None
+            play_wav_file(audio_path, self.stop_event)
         finally:
             audio_path.unlink(missing_ok=True)
 
@@ -318,6 +322,8 @@ class GPTSoVITSTTSWorker:
         self.server_process: subprocess.Popen | None = None
         self.server_started_here = False
         self.server_lock = threading.Lock()
+        self.log_lock = threading.Lock()
+        self.status_callback = None
         self.data_dir.mkdir(parents=True, exist_ok=True)
         for path in (self.root, self.python, self.config_path, Path(config["gpt_sovits_ref_audio"])):
             if not path.exists():
@@ -327,6 +333,23 @@ class GPTSoVITSTTSWorker:
 
     def prewarm(self, on_status=None) -> None:
         threading.Thread(target=self._prewarm, args=(on_status,), daemon=True).start()
+
+    def set_status_callback(self, callback) -> None:
+        self.status_callback = callback
+
+    def _log(self, message: str) -> None:
+        line = f"[{now()}] {message}\n"
+        try:
+            with self.log_lock:
+                with (self.data_dir / "tts_playback.log").open("a", encoding="utf-8") as log_file:
+                    log_file.write(line)
+        except OSError:
+            pass
+
+    def _status(self, message: str) -> None:
+        self._log(message)
+        if self.status_callback:
+            self.status_callback(message)
 
     def _prewarm(self, on_status) -> None:
         try:
@@ -383,7 +406,7 @@ class GPTSoVITSTTSWorker:
                 self._speak(text)
             except Exception as error:
                 self.enabled = False
-                print(f"\n[GPT-SoVITS 음성이 꺼졌어: {error}]", flush=True)
+                self._status(f"음성 재생 실패: {error}")
             finally:
                 self.speaking.clear()
                 self.last_finished_at = time.monotonic()
@@ -473,10 +496,6 @@ class GPTSoVITSTTSWorker:
         )
         with tempfile.NamedTemporaryFile(prefix="hana_gpt_", suffix=".wav", dir=self.data_dir, delete=False) as file:
             audio_path = Path(file.name)
-        player = shutil.which("ffplay")
-        if not player:
-            audio_path.unlink(missing_ok=True)
-            raise RuntimeError("ffplay를 찾을 수 없어")
         try:
             try:
                 with urlopen(request, timeout=180) as response, audio_path.open("wb") as output:
@@ -486,25 +505,10 @@ class GPTSoVITSTTSWorker:
                 raise RuntimeError(detail[:800]) from error
             if self.stop_event.is_set():
                 return
-            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
-            process = subprocess.Popen(
-                [player, "-nodisp", "-autoexit", "-loglevel", "quiet", str(audio_path)],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                creationflags=creationflags,
-            )
-            with self.process_lock:
-                self.process = process
-            try:
-                process.wait(timeout=180)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=2)
-            finally:
-                with self.process_lock:
-                    if self.process is process:
-                        self.process = None
+            size = audio_path.stat().st_size
+            self._log(f"WAV 생성 완료: {size} bytes, text={text[:80]}")
+            play_wav_file(audio_path, self.stop_event)
+            self._log("윈도우 기본 장치 재생 완료")
         finally:
             audio_path.unlink(missing_ok=True)
 

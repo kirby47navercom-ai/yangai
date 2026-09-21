@@ -141,6 +141,8 @@ class HanaApp:
             self._on_screen_error,
         )
         self._build_ui()
+        if self.tts and hasattr(self.tts, "set_status_callback"):
+            self.tts.set_status_callback(self._post_tts_status)
         if self.tts and hasattr(self.tts, "prewarm"):
             self.tts_status = "음성 모델 로딩 중..."
             self.tts.prewarm(self._post_tts_status)
@@ -356,11 +358,9 @@ class HanaApp:
                 ),
             }
         )
-        answer = "".join(stream_chat(self.config, messages)).strip()
+        answer = self._stream_and_speak(messages)
         if not answer:
             return
-        self.root.after(0, lambda: self._line("하나", answer, "hana"))
-        self._speak(answer)
 
     def _answer_idle(self) -> None:
         if self.last_user_activity_at > self.last_idle_requested_at:
@@ -386,7 +386,7 @@ class HanaApp:
                 ),
             }
         )
-        answer = "".join(stream_chat(self.config, messages)).strip()
+        answer = self._stream_and_speak(messages)
         if not answer:
             return
         created_at = now()
@@ -394,23 +394,28 @@ class HanaApp:
         self.history.append({"role": "assistant", "content": answer, "created_at": created_at})
         save_memory_snapshot(self.memory, self.history, self.screen_context.prompt())
         self.last_response_at = time.monotonic()
-        self.root.after(0, lambda: self._line("하나", answer, "hana"))
-        self._speak(answer)
 
-    def _stream_answer(self, messages: list[dict], persist: bool) -> None:
+    def _stream_and_speak(self, messages: list[dict]) -> str:
         self.root.after(0, lambda: self._start_line("하나", "hana"))
         full = ""
+        sentence_buffer = SentenceBuffer()
         try:
             for piece in stream_chat(self.config, messages):
                 full += piece
                 self.root.after(0, lambda piece=piece: self._append_text(piece))
-            if self.tts and full.strip():
-                self.tts.submit(full)
+                for sentence in sentence_buffer.feed(piece):
+                    self._speak(sentence)
+            for sentence in sentence_buffer.flush():
+                self._speak(sentence)
             self.root.after(0, self._finish_line)
-            self.last_response_at = time.monotonic()
         except Exception:
             self.root.after(0, self._finish_line)
             raise
+        return full.strip()
+
+    def _stream_answer(self, messages: list[dict], persist: bool) -> None:
+        full = self._stream_and_speak(messages)
+        self.last_response_at = time.monotonic()
         if persist and full.strip():
             answer = full.strip()
             append_jsonl(self.history_file, {"role": "assistant", "content": answer, "created_at": now()})
