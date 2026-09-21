@@ -1,5 +1,7 @@
 .venv/
+__pycache__/
 voices/
+data/history.jsonl
 data/*.wav
 data/*.tmp
 data/piper_*.log

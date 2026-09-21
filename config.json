@@ -1,5 +1,5 @@
 {
-  "model": "qwen3:4b",
+  "model": "qwen2.5:3b",
   "ollama_url": "http://127.0.0.1:11434",
   "piper_model": "voices/ko_KR-kss-medium.onnx",
   "piper_espeak_data": "%USERPROFILE%\\maple_espeak",

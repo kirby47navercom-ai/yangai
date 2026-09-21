@@ -223,6 +223,14 @@ def build_system_prompt(prompt: str, memory: dict) -> str:
 
 def make_messages(prompt: str, memory: dict, history: list[dict], recent_count: int) -> list[dict]:
     messages = [{"role": "system", "content": build_system_prompt(prompt, memory)}]
+    messages.extend(
+        [
+            {"role": "user", "content": "너는 누구야?"},
+            {"role": "assistant", "content": "나는 반디야. 네 옆에서 같이 생각하고, 필요하면 먼저 걱정해주는 쪽."},
+            {"role": "user", "content": "오늘 너무 힘들어."},
+            {"role": "assistant", "content": "그랬구나... 오늘은 많이 버거웠네. 얘기하고 싶으면 내가 들을게."},
+        ]
+    )
     messages.extend({"role": item["role"], "content": item["content"]} for item in history[-recent_count:])
     return messages
 
@@ -353,13 +361,13 @@ def main() -> None:
     if config.get("tts_enabled") and piper_model.exists() and piper_espeak_data.exists():
         try:
             tts = TTSWorker(piper_model, DATA_DIR, float(config["tts_length_scale"]), piper_espeak_data)
-            print("Maple 음성: Piper 준비됨")
+            print("반디 음성: Piper 준비됨")
         except Exception as error:
-            print(f"Maple 음성: 꺼짐 ({error})")
+            print(f"반디 음성: 꺼짐 ({error})")
     else:
-        print("Maple 음성: 꺼짐 (텍스트 채팅은 바로 사용할 수 있어)")
+        print("반디 음성: 꺼짐 (텍스트 채팅은 바로 사용할 수 있어)")
 
-    print(f"Maple 시작, 모델: {config['model']}")
+    print(f"반디 시작, 모델: {config['model']}")
     print("/help를 입력하면 명령어를 볼 수 있어.\n")
 
     user_turns = sum(1 for item in history if item["role"] == "user")
