@@ -127,6 +127,7 @@ class HanaApp:
         self.stop_event = threading.Event()
         self.chat_busy = threading.Event()
         self.chat_queue: queue.Queue[tuple[str, str]] = queue.Queue()
+        self.runtime_log = DATA_DIR / "hana_runtime.jsonl"
         self.last_user_activity_at = time.monotonic()
         self.last_response_at = time.monotonic()
         self.last_auto_requested_at = self.last_response_at
@@ -270,28 +271,39 @@ class HanaApp:
         if not self.stop_event.is_set():
             self.root.after(0, lambda: self._on_tts_status(message))
 
+    def _runtime_log(self, message: str) -> None:
+        try:
+            append_jsonl(self.runtime_log, {"message": message, "created_at": now()})
+        except OSError:
+            pass
+
     def _idle_loop(self) -> None:
         delay = max(1.0, float(self.config.get("talk_after_speech_seconds", 3)))
         while not self.stop_event.wait(1.0):
-            if not self.config.get("idle_talk_enabled", True):
-                continue
-            if self.chat_busy.is_set():
-                continue
-            if not self.chat_queue.empty():
-                continue
-            if self._tts_busy():
-                continue
-            if self.watcher.running() and not self.screen_context.read():
-                continue
-            reference = max(self.last_response_at, self.last_auto_requested_at)
-            if self.tts and self.tts.enabled:
-                reference = max(reference, self.tts.last_finished_at)
-            requested_at = time.monotonic()
-            if requested_at - reference < delay:
-                continue
-            self.last_auto_requested_at = requested_at
-            self.last_idle_requested_at = requested_at
-            self.chat_queue.put(("idle", ""))
+            try:
+                if not self.config.get("idle_talk_enabled", True):
+                    continue
+                if self.chat_busy.is_set():
+                    continue
+                if not self.chat_queue.empty():
+                    continue
+                if self._tts_busy():
+                    continue
+                if self.watcher.running() and not self.screen_context.read():
+                    continue
+                reference = max(self.last_response_at, self.last_auto_requested_at)
+                if self.tts and self.tts.enabled:
+                    reference = max(reference, self.tts.last_finished_at)
+                requested_at = time.monotonic()
+                if requested_at - reference < delay:
+                    continue
+                self.last_auto_requested_at = requested_at
+                self.last_idle_requested_at = requested_at
+                self._runtime_log("idle request queued")
+                self.chat_queue.put(("idle", ""))
+            except Exception as error:
+                self._runtime_log(f"idle loop recovered: {type(error).__name__}: {error}")
+                self.stop_event.wait(1.0)
 
     def _tts_busy(self) -> bool:
         return bool(self.tts and (self.tts.speaking.is_set() or not self.tts.items.empty()))
@@ -363,7 +375,9 @@ class HanaApp:
         )
         answer = self._stream_and_speak(messages)
         if not answer:
+            self._runtime_log("idle response was empty")
             return
+        self._runtime_log(f"idle response received: {len(answer)} chars")
 
     def _answer_idle(self) -> None:
         if self.last_user_activity_at > self.last_idle_requested_at:
