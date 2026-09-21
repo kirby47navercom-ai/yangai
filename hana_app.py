@@ -52,7 +52,7 @@ class MicLoop:
     def stop(self) -> None:
         self.stop_event.set()
         if self.thread:
-            self.thread.join(timeout=2)
+            self.thread.join(timeout=0.6)
         self.thread = None
 
     def running(self) -> bool:
@@ -94,7 +94,7 @@ class MicLoop:
                 silence_count = 0
                 speaking = False
                 text = self.recognizer.transcribe_audio(clip)
-                if text:
+                if text and not self.stop_event.is_set():
                     self.on_text(text)
         except Exception as error:
             self.on_error(str(error))

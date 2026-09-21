@@ -173,6 +173,9 @@ class TTSWorker:
         self.items: queue.Queue[str | None] = queue.Queue()
         self.enabled = True
         self.speaking = threading.Event()
+        self.stop_event = threading.Event()
+        self.process_lock = threading.Lock()
+        self.process: subprocess.Popen | None = None
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
 
@@ -182,8 +185,18 @@ class TTSWorker:
             self.items.put(text)
 
     def close(self) -> None:
+        self.stop_event.set()
+        while True:
+            try:
+                self.items.get_nowait()
+            except queue.Empty:
+                break
         self.items.put(None)
-        self.thread.join(timeout=2)
+        with self.process_lock:
+            process = self.process
+        if process and process.poll() is None:
+            process.terminate()
+        self.thread.join(timeout=1)
 
     def _run(self) -> None:
         while True:
@@ -216,11 +229,29 @@ class TTSWorker:
                     wav_file,
                     SynthesisConfig(length_scale=self.length_scale),
                 )
-            subprocess.run(
+            if self.stop_event.is_set():
+                return
+            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+            process = subprocess.Popen(
                 [player, "-nodisp", "-autoexit", "-loglevel", "quiet", str(audio_path)],
-                check=False,
-                timeout=60,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=creationflags,
             )
+            with self.process_lock:
+                self.process = process
+            if self.stop_event.is_set() and process.poll() is None:
+                process.terminate()
+            try:
+                process.wait(timeout=60)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=2)
+            finally:
+                with self.process_lock:
+                    if self.process is process:
+                        self.process = None
         finally:
             audio_path.unlink(missing_ok=True)
 
@@ -307,7 +338,7 @@ class ScreenWatcher:
     def stop(self) -> None:
         self.stop_event.set()
         if self.thread:
-            self.thread.join(timeout=2)
+            self.thread.join(timeout=0.4)
         self.thread = None
 
     def running(self) -> bool:
@@ -350,6 +381,8 @@ class ScreenWatcher:
                         model=vision_model,
                         images=[encoded],
                     )
+                    if self.stop_event.is_set():
+                        return
                     if observation:
                         self.context.update(observation)
                         normalized = re.sub(r"\s+", " ", observation).strip()
@@ -363,7 +396,7 @@ class ScreenWatcher:
                     self.stop_event.wait(interval)
         except Exception as error:
             self.last_error = str(error)
-            if self.on_error:
+            if self.on_error and not self.stop_event.is_set():
                 self.on_error(self.last_error)
 
 

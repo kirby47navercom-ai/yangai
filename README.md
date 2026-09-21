@@ -8,7 +8,7 @@ Qwen3 + Ollama + Piper로 동작하는 저지연 음성·화면 대화 프로그
 
 Piper는 하나 프로세스 안에서 직접 실행돼. 별도 음성 서버나 `D:` 드라이브 매핑은 사용하지 않아.
 
-그 다음 `start_hana.bat`을 실행하면 돼. `dist\Hana\Hana.exe`가 있으면 GUI로 실행되고, 없으면 Python GUI로 실행돼.
+그 다음 `start_hana.vbs`를 더블클릭하면 돼. 콘솔 창 없이 `dist\Hana\Hana.exe`를 실행하고, EXE가 없으면 Python GUI로 넘어가. 기존 `start_hana.bat`도 이 숨김 실행기를 호출해.
 
 ## GUI
 
