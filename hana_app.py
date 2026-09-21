@@ -16,6 +16,7 @@ from hana_chat import (
     ScreenWatcher,
     SentenceBuffer,
     SpeechRecognizer,
+    GPTSoVITSTTSWorker,
     TTSWorker,
     append_jsonl,
     default_memory,
@@ -149,6 +150,11 @@ class HanaApp:
     def _create_tts(self):
         if not self.config.get("tts_enabled"):
             return None
+        if self.config.get("tts_engine") == "gpt_sovits":
+            try:
+                return GPTSoVITSTTSWorker(self.config, DATA_DIR)
+            except Exception as error:
+                print(f"하나 음성: GPT-SoVITS 준비 실패 ({error})")
         model = ROOT / self.config.get("piper_model", "voices/ko_KR-kss-medium.onnx")
         espeak = Path(self.config.get("piper_espeak_data", "").replace("%USERPROFILE%", str(Path.home())))
         if not model.exists() or not espeak.exists():

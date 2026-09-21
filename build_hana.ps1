@@ -32,6 +32,7 @@ try {
     $BuiltDist = Join-Path $BuildDist 'Hana'
     Copy-Item (Join-Path $Root 'config.json') $BuiltDist -Force
     Copy-Item (Join-Path $Root 'hana_prompt.txt') $BuiltDist -Force
+    Copy-Item (Join-Path $Root 'gpt_sovits_hana.yaml') $BuiltDist -Force
     Copy-Item (Join-Path $Root 'voices') (Join-Path $BuiltDist 'voices') -Recurse -Force
     Copy-Item (Join-Path $Root 'assets') (Join-Path $BuiltDist 'assets') -Recurse -Force
 

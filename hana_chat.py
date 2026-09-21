@@ -298,6 +298,190 @@ class TTSWorker:
             audio_path.unlink(missing_ok=True)
 
 
+class GPTSoVITSTTSWorker:
+    def __init__(self, config: dict, data_dir: Path) -> None:
+        self.config = config
+        self.data_dir = data_dir
+        self.root = Path(config["gpt_sovits_root"])
+        self.python = Path(config["gpt_sovits_python"])
+        self.config_path = ROOT / config.get("gpt_sovits_config", "gpt_sovits_hana.yaml")
+        self.port = int(config.get("gpt_sovits_port", 9880))
+        self.items: queue.Queue[str | None] = queue.Queue()
+        self.enabled = True
+        self.speaking = threading.Event()
+        self.last_finished_at = 0.0
+        self.stop_event = threading.Event()
+        self.process_lock = threading.Lock()
+        self.process: subprocess.Popen | None = None
+        self.server_process: subprocess.Popen | None = None
+        self.server_started_here = False
+        self.server_lock = threading.Lock()
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        for path in (self.root, self.python, self.config_path, Path(config["gpt_sovits_ref_audio"])):
+            if not path.exists():
+                raise FileNotFoundError(f"GPT-SoVITS 파일이 없어: {path}")
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+
+    def submit(self, text: str) -> None:
+        text = clean_for_speech(text)
+        if self.enabled and len(text) >= 2:
+            self.items.put(text)
+
+    def close(self) -> None:
+        self.stop_event.set()
+        while True:
+            try:
+                self.items.get_nowait()
+            except queue.Empty:
+                break
+        self.items.put(None)
+        with self.process_lock:
+            process = self.process
+        if process and process.poll() is None:
+            process.terminate()
+        self.thread.join(timeout=2)
+        with self.server_lock:
+            server = self.server_process if self.server_started_here else None
+        if server and server.poll() is None:
+            server.terminate()
+
+    def _run(self) -> None:
+        while True:
+            text = self.items.get()
+            if text is None:
+                return
+            try:
+                self.speaking.set()
+                self._speak(text)
+            except Exception as error:
+                self.enabled = False
+                print(f"\n[GPT-SoVITS 음성이 꺼졌어: {error}]", flush=True)
+            finally:
+                self.speaking.clear()
+                self.last_finished_at = time.monotonic()
+
+    def _server_url(self, path: str = "") -> str:
+        return f"http://127.0.0.1:{self.port}{path}"
+
+    def _server_ready(self) -> bool:
+        try:
+            with urlopen(self._server_url("/docs"), timeout=1):
+                return True
+        except Exception:
+            return False
+
+    def _ensure_server(self) -> None:
+        if self._server_ready():
+            return
+        with self.server_lock:
+            if self._server_ready():
+                return
+            log_path = self.data_dir / "gpt_sovits.log"
+            log_file = log_path.open("a", encoding="utf-8")
+            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+            self.server_process = subprocess.Popen(
+                [
+                    str(self.python),
+                    "api_v2.py",
+                    "-a",
+                    "127.0.0.1",
+                    "-p",
+                    str(self.port),
+                    "-c",
+                    str(self.config_path),
+                ],
+                cwd=self.root,
+                stdin=subprocess.DEVNULL,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                creationflags=creationflags,
+                env={
+                    **os.environ,
+                    "PYTHONUTF8": "1",
+                    "PATH": str(self.config.get("gpt_sovits_ffmpeg", ""))
+                    + os.pathsep
+                    + os.environ.get("PATH", ""),
+                },
+            )
+            log_file.close()
+            self.server_started_here = True
+
+        deadline = time.monotonic() + 180
+        while time.monotonic() < deadline and not self.stop_event.is_set():
+            if self._server_ready():
+                return
+            with self.server_lock:
+                process = self.server_process
+            if process and process.poll() is not None:
+                detail = ""
+                try:
+                    detail = (self.data_dir / "gpt_sovits.log").read_text(encoding="utf-8", errors="replace")[-1600:]
+                except OSError:
+                    pass
+                raise RuntimeError(f"GPT-SoVITS 서버가 시작되지 않았어. {detail}")
+            time.sleep(0.4)
+        raise TimeoutError("GPT-SoVITS 모델 로딩이 180초를 넘겼어")
+
+    def _speak(self, text: str) -> None:
+        self._ensure_server()
+        payload = {
+            "text": text,
+            "text_lang": self.config.get("gpt_sovits_text_lang", "ko"),
+            "ref_audio_path": self.config["gpt_sovits_ref_audio"],
+            "prompt_lang": self.config.get("gpt_sovits_prompt_lang", "ko"),
+            "prompt_text": self.config["gpt_sovits_ref_text"],
+            "text_split_method": "cut5",
+            "batch_size": 1,
+            "media_type": "wav",
+            "streaming_mode": int(self.config.get("gpt_sovits_streaming_mode", 0)),
+            "speed_factor": 1.0,
+            "parallel_infer": True,
+        }
+        request = Request(
+            self._server_url("/tts"),
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with tempfile.NamedTemporaryFile(prefix="hana_gpt_", suffix=".wav", dir=self.data_dir, delete=False) as file:
+            audio_path = Path(file.name)
+        player = shutil.which("ffplay")
+        if not player:
+            audio_path.unlink(missing_ok=True)
+            raise RuntimeError("ffplay를 찾을 수 없어")
+        try:
+            try:
+                with urlopen(request, timeout=180) as response, audio_path.open("wb") as output:
+                    shutil.copyfileobj(response, output)
+            except HTTPError as error:
+                detail = error.read().decode("utf-8", errors="replace")
+                raise RuntimeError(detail[:800]) from error
+            if self.stop_event.is_set():
+                return
+            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+            process = subprocess.Popen(
+                [player, "-nodisp", "-autoexit", "-loglevel", "quiet", str(audio_path)],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=creationflags,
+            )
+            with self.process_lock:
+                self.process = process
+            try:
+                process.wait(timeout=180)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=2)
+            finally:
+                with self.process_lock:
+                    if self.process is process:
+                        self.process = None
+        finally:
+            audio_path.unlink(missing_ok=True)
+
+
 class SpeechRecognizer:
     def __init__(self, config: dict) -> None:
         self.model_name = config.get("stt_model", "small")
@@ -835,16 +1019,23 @@ def main() -> None:
     recognizer = None
     screen_context = ScreenContext()
     watcher = ScreenWatcher(config, screen_context)
-    piper_model = ROOT / config.get("piper_model", "voices/ko_KR-kss-medium.onnx")
-    piper_espeak_data = Path(os.path.expandvars(config.get("piper_espeak_data", "%USERPROFILE%\\hana_espeak")))
-    if config.get("tts_enabled") and piper_model.exists() and piper_espeak_data.exists():
+    if config.get("tts_enabled") and config.get("tts_engine") == "gpt_sovits":
         try:
-            tts = TTSWorker(piper_model, DATA_DIR, float(config["tts_length_scale"]), piper_espeak_data)
-            print("하나 음성: Piper 준비됨")
+            tts = GPTSoVITSTTSWorker(config, DATA_DIR)
+            print("하나 음성: GPT-SoVITS 준비됨")
         except Exception as error:
             print(f"하나 음성: 꺼짐 ({error})")
     else:
-        print("하나 음성: 꺼짐 (텍스트 채팅은 바로 사용할 수 있어)")
+        piper_model = ROOT / config.get("piper_model", "voices/ko_KR-kss-medium.onnx")
+        piper_espeak_data = Path(os.path.expandvars(config.get("piper_espeak_data", "%USERPROFILE%\\hana_espeak")))
+        if config.get("tts_enabled") and piper_model.exists() and piper_espeak_data.exists():
+            try:
+                tts = TTSWorker(piper_model, DATA_DIR, float(config["tts_length_scale"]), piper_espeak_data)
+                print("하나 음성: Piper 준비됨")
+            except Exception as error:
+                print(f"하나 음성: 꺼짐 ({error})")
+        else:
+            print("하나 음성: 꺼짐 (텍스트 채팅은 바로 사용할 수 있어)")
 
     print(f"하나 시작, 모델: {config['model']}")
     print("/help를 입력하면 명령어를 볼 수 있어.\n")
