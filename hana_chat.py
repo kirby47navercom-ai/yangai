@@ -115,7 +115,7 @@ def read_config() -> dict:
         "screen_proactive": True,
         "screen_reaction_cooldown": 15,
         "idle_talk_enabled": True,
-        "idle_talk_seconds": 25,
+        "idle_talk_seconds": 15,
     }
     defaults.update(config)
     return defaults
@@ -325,6 +325,9 @@ class ScreenWatcher:
         self.last_error = ""
         self.last_observation = ""
         self.last_emit_at = 0.0
+        self.image_lock = threading.Lock()
+        self.latest_image = ""
+        self.request_lock = threading.Lock()
 
     def start(self) -> bool:
         if self.thread and self.thread.is_alive():
@@ -343,6 +346,33 @@ class ScreenWatcher:
 
     def running(self) -> bool:
         return bool(self.thread and self.thread.is_alive())
+
+    def latest_image_data(self) -> str:
+        with self.image_lock:
+            return self.latest_image
+
+    def answer_question(self, question: str) -> str:
+        image = self.latest_image_data()
+        if not image:
+            return ""
+        with self.request_lock:
+            return one_shot(
+                self.config,
+                [
+                    {
+                        "role": "user",
+                        "content": (
+                            "현재 화면을 직접 보고 사용자의 질문에 답해. 화면에 실제로 보이는 앱, 문서, 게임, "
+                            "코드, 큰 글자와 핵심 내용을 구체적으로 말해. 보이지 않는 것은 추측하지 말고, "
+                            "화면을 못 본다는 말로 회피하지 마. 반드시 자연스러운 한국어로만 짧게 답해. "
+                            "사용자 질문: "
+                            + question
+                        ),
+                    }
+                ],
+                model=self.config.get("vision_model"),
+                images=[image],
+            )
 
     def _run(self) -> None:
         try:
@@ -365,22 +395,26 @@ class ScreenWatcher:
                     buffer = io.BytesIO()
                     image.save(buffer, format="JPEG", quality=65, optimize=True)
                     encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
-                    observation = one_shot(
-                        self.config,
-                        [
-                            {
-                                "role": "user",
-                                "content": (
-                                    "게임 방송 중인 버튜버가 참고할 화면 관찰이야. "
-                                    "보이는 장면에서 중요한 변화, 위험, 웃긴 상황만 한두 문장으로 말해. "
-                                    "반드시 자연스러운 한국어만 사용하고, 마크다운·목록·분석 과정·추측은 금지해. "
-                                    "화면에 특별한 변화가 없으면 정확히 '변화 없음'이라고만 말해."
-                                ),
-                            }
-                        ],
-                        model=vision_model,
-                        images=[encoded],
-                    )
+                    with self.image_lock:
+                        self.latest_image = encoded
+                    with self.request_lock:
+                        observation = one_shot(
+                            self.config,
+                            [
+                                {
+                                    "role": "user",
+                                    "content": (
+                                        "게임 방송 중인 버튜버가 참고할 화면 관찰이야. "
+                                        "앱 이름, 문서 제목, 게임 상태, 큰 글자처럼 화면을 식별할 수 있는 내용을 "
+                                        "우선 읽고, 중요한 변화·위험·웃긴 상황을 한두 문장으로 말해. "
+                                        "반드시 자연스러운 한국어만 사용하고, 마크다운·목록·분석 과정·추측은 금지해. "
+                                        "화면에 특별한 변화가 없으면 정확히 '변화 없음'이라고만 말해."
+                                    ),
+                                }
+                            ],
+                            model=vision_model,
+                            images=[encoded],
+                        )
                     if self.stop_event.is_set():
                         return
                     if observation:
@@ -434,7 +468,7 @@ def build_system_prompt(prompt: str, memory: dict, screen_context: str = "") -> 
         + "\n- 능력을 묻는 질문에는 추상적인 능력 목록 대신, 실제로 겪은 장면이나 그 힘이 지금 어떻게 드러나는지를 한 가지 연결해 말해."
         + "\n- 머릿속에서 의미를 판단하되 분석 과정이나 이 규칙을 출력하지 마. 매번 현재 문맥에 맞는 새 문장을 만들어."
         + "\n- 머릿속에서 의미를 판단하되 분석 과정이나 이 규칙을 출력하지 마. 매번 현재 문맥에 맞는 새 문장을 만들어."
-        + "\n- 현재 화면 관찰이 있으면 화면 관련 질문에는 그 관찰을 근거로 답해. 화면 관찰이 없을 때만 못 본다고 말해."
+        + "\n- [현재 게임 화면 관찰]은 가장 최근에 실제 화면에서 얻은 근거야. 내용이 있으면 화면 질문에 반드시 그 근거로 답하고, '못 봐', '어두워서 모르겠어', '잘 안 보여'라고 회피하지 마. '변화 없음'은 중요한 변화가 없다는 뜻이지 화면 자체를 못 봤다는 뜻이 아니야."
         + screen_text
     )
 

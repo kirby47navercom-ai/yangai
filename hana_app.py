@@ -115,7 +115,9 @@ class HanaApp:
         self.stop_event = threading.Event()
         self.chat_busy = threading.Event()
         self.chat_queue: queue.Queue[tuple[str, str]] = queue.Queue()
-        self.last_activity_at = time.monotonic()
+        self.last_user_activity_at = time.monotonic()
+        self.last_auto_activity_at = time.monotonic()
+        self.last_idle_requested_at = 0.0
         self.screen_context = ScreenContext()
         self.tts = self._create_tts()
         self.recognizer = SpeechRecognizer(self.config)
@@ -229,7 +231,6 @@ class HanaApp:
         self.root.after(0, lambda: self._system(f"마이크를 사용할 수 없어: {error}"))
 
     def _on_screen_observation(self, observation: str) -> None:
-        self.last_activity_at = time.monotonic()
         self.root.after(0, lambda: self.status.configure(text=f"화면 읽음: {observation[:32]}"))
         if self.config.get("screen_proactive", True):
             self.chat_queue.put(("screen", observation))
@@ -248,16 +249,18 @@ class HanaApp:
                 continue
             if not self.chat_queue.empty():
                 continue
-            if time.monotonic() - self.last_activity_at < idle_seconds:
+            last_activity = max(self.last_user_activity_at, self.last_auto_activity_at)
+            if time.monotonic() - last_activity < idle_seconds:
                 continue
-            self.last_activity_at = time.monotonic()
+            self.last_auto_activity_at = time.monotonic()
+            self.last_idle_requested_at = self.last_auto_activity_at
             self.chat_queue.put(("idle", ""))
 
     def _queue_user(self, text: str, source: str = "입력") -> None:
         text = text.strip()
         if not text:
             return
-        self.last_activity_at = time.monotonic()
+        self.last_user_activity_at = time.monotonic()
         self._line("너", text, "user")
         self.chat_queue.put(("user", text))
 
@@ -283,14 +286,23 @@ class HanaApp:
             except Exception as error:
                 self.root.after(0, lambda error=error: self._system(f"응답을 만들 수 없어: {error}"))
             finally:
-                self.last_activity_at = time.monotonic()
                 self.chat_busy.clear()
 
     def _answer_user(self, text: str) -> None:
         append_jsonl(HISTORY_FILE, {"role": "user", "content": text, "created_at": now()})
         self.history.append({"role": "user", "content": text, "created_at": now()})
-        messages = make_messages(self.prompt, self.memory, self.history, int(self.config["recent_messages"]), self.screen_context.read())
+        screen_context = self.screen_context.read()
+        if self._is_screen_question(text):
+            direct_observation = self.watcher.answer_question(text)
+            if direct_observation:
+                self.screen_context.update(direct_observation)
+                screen_context = direct_observation
+        messages = make_messages(self.prompt, self.memory, self.history, int(self.config["recent_messages"]), screen_context)
         self._stream_answer(messages, persist=True)
+
+    def _is_screen_question(self, text: str) -> bool:
+        markers = ("화면", "보이", "보여", "뭐가", "공부", "읽어", "맞춰", "게임")
+        return any(marker in text for marker in markers) and self.watcher.running()
 
     def _answer_screen(self, observation: str) -> None:
         messages = make_messages(self.prompt, self.memory, self.history, int(self.config["recent_messages"]), self.screen_context.read())
@@ -311,6 +323,8 @@ class HanaApp:
         self._speak(answer)
 
     def _answer_idle(self) -> None:
+        if self.last_user_activity_at > self.last_idle_requested_at:
+            return
         messages = make_messages(
             self.prompt,
             self.memory,
