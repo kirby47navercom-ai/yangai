@@ -10,7 +10,7 @@ $Venv = Join-Path $Root '.venv'
 $VenvPython = Join-Path $Venv 'Scripts\python.exe'
 $VoiceDir = Join-Path $Root 'voices'
 $VoiceModel = Join-Path $VoiceDir 'ko_KR-kss-medium.onnx'
-$EspeakData = Join-Path $env:USERPROFILE 'maple_espeak'
+$EspeakData = Join-Path $env:USERPROFILE 'hana_espeak'
 $Config = Get-Content (Join-Path $Root 'config.json') -Raw | ConvertFrom-Json
 
 if (-not (Test-Path -LiteralPath $VenvPython)) {
@@ -38,4 +38,4 @@ if ($modelNames -notmatch [regex]::Escape($Config.vision_model)) {
 }
 
 Write-Host ''
-Write-Host '설정이 끝났어. 이제 start_maple.bat을 실행하면 돼.' -ForegroundColor Green
+Write-Host '설정이 끝났어. 이제 start_hana.bat을 실행하면 돼.' -ForegroundColor Green

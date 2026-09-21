@@ -88,7 +88,7 @@ def read_config() -> dict:
         "model": "qwen3:8b",
         "ollama_url": "http://127.0.0.1:11434",
         "piper_model": "voices/ko_KR-kss-medium.onnx",
-        "piper_espeak_data": "%USERPROFILE%\\maple_espeak",
+        "piper_espeak_data": "%USERPROFILE%\\hana_espeak",
         "tts_enabled": True,
         "tts_length_scale": 0.9,
         "num_ctx": 4096,
@@ -186,7 +186,7 @@ class TTSWorker:
                 print(f"\n[TTS가 꺼졌어: {error}]", flush=True)
 
     def _speak(self, text: str) -> None:
-        with tempfile.NamedTemporaryFile(prefix="maple_", suffix=".wav", dir=self.data_dir, delete=False) as file:
+        with tempfile.NamedTemporaryFile(prefix="hana_", suffix=".wav", dir=self.data_dir, delete=False) as file:
             audio_path = Path(file.name)
 
         player = shutil.which("ffplay")
@@ -535,7 +535,7 @@ def main() -> None:
         models = request_json(config["ollama_url"].rstrip("/") + "/api/tags", timeout=2).get("models", [])
         names = {item.get("name") for item in models}
         if config["model"] not in names:
-            print(f"모델 {config['model']}이 없어. setup_maple.ps1을 한 번 실행해줘.")
+            print(f"모델 {config['model']}이 없어. setup_hana.ps1을 한 번 실행해줘.")
             return
     except Exception as error:
         print(f"Ollama 모델 확인 실패: {error}")
@@ -546,7 +546,7 @@ def main() -> None:
     screen_context = ScreenContext()
     watcher = ScreenWatcher(config, screen_context)
     piper_model = ROOT / config.get("piper_model", "voices/ko_KR-kss-medium.onnx")
-    piper_espeak_data = Path(os.path.expandvars(config.get("piper_espeak_data", "%USERPROFILE%\\maple_espeak")))
+    piper_espeak_data = Path(os.path.expandvars(config.get("piper_espeak_data", "%USERPROFILE%\\hana_espeak")))
     if config.get("tts_enabled") and piper_model.exists() and piper_espeak_data.exists():
         try:
             tts = TTSWorker(piper_model, DATA_DIR, float(config["tts_length_scale"]), piper_espeak_data)
@@ -598,7 +598,7 @@ def main() -> None:
             if user_text.startswith("/voice "):
                 value = user_text.split(maxsplit=1)[1].lower()
                 if tts is None:
-                    print("Piper 음성이 준비되지 않았어. setup_maple.ps1을 한 번 실행해줘.\n")
+                    print("Piper 음성이 준비되지 않았어. setup_hana.ps1을 한 번 실행해줘.\n")
                 else:
                     tts.enabled = value == "on"
                     print(f"음성: {'켜짐' if tts.enabled else '꺼짐'}\n")
@@ -626,7 +626,7 @@ def main() -> None:
                         names = {item.get("name") for item in models}
                         vision_model = config.get("vision_model")
                         if vision_model not in names:
-                            print(f"화면 모델 {vision_model}이 없어. setup_maple.ps1을 한 번 실행해줘.\n")
+                            print(f"화면 모델 {vision_model}이 없어. setup_hana.ps1을 한 번 실행해줘.\n")
                         else:
                             watcher.start()
                             print("게임 화면 관찰: 켜짐\n")
