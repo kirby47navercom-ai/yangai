@@ -92,6 +92,21 @@ def load_history(path: Path | None = None) -> list[dict]:
     return history
 
 
+def load_latest_session_history(exclude: Path | None = None) -> list[dict]:
+    candidates = sorted(
+        SESSION_DIR.glob("session_*.jsonl"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for path in candidates:
+        if exclude and path.resolve() == exclude.resolve():
+            continue
+        history = load_history(path)
+        if history:
+            return history[-12:]
+    return []
+
+
 def request_json(url: str, payload: dict | None = None, timeout: float = 30) -> dict:
     if payload is None:
         request = Request(url, method="GET")

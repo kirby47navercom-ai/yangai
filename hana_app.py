@@ -20,6 +20,7 @@ from hana_chat import (
     append_jsonl,
     default_memory,
     load_history,
+    load_latest_session_history,
     load_json,
     make_messages,
     new_session_file,
@@ -115,6 +116,10 @@ class HanaApp:
         self.memory = load_json(MEMORY_FILE, default_memory())
         self.history_file = new_session_file()
         self.history = load_history(self.history_file)
+        if not self.memory.get("recent_conversation") and not self.history:
+            previous_history = load_latest_session_history(self.history_file)
+            if previous_history:
+                save_memory_snapshot(self.memory, previous_history)
         self.user_turns = sum(1 for item in self.history if item["role"] == "user")
         self.stop_event = threading.Event()
         self.chat_busy = threading.Event()
