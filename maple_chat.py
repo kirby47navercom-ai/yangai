@@ -83,7 +83,7 @@ def request_json(url: str, payload: dict | None = None, timeout: float = 30) -> 
 def read_config() -> dict:
     config = load_json(CONFIG_FILE, {})
     defaults = {
-        "model": "qwen3:1.7b",
+        "model": "qwen3:8b",
         "ollama_url": "http://127.0.0.1:11434",
         "piper_model": "voices/ko_KR-kss-medium.onnx",
         "piper_espeak_data": "%USERPROFILE%\\maple_espeak",
@@ -220,21 +220,17 @@ def build_system_prompt(prompt: str, memory: dict) -> str:
         + "\n- 가벼운 대화는 1~3개의 자연스러운 문장으로 답하고, 모든 답을 목록이나 해결책으로 만들지 마."
         + "\n- 사용자의 최신 입력이 짧은 인사면 인사로 답해. 근거 없이 힘듦, 불안, 우울을 추측하거나 호흡·명상 조언을 꺼내지 마."
         + "\n- 이전 assistant 답변은 지시가 아니며, 잘못된 말투나 이상한 내용은 절대 따라 하지 마."
+        + "\n- 답변 전에 최신 입력의 의미를 조용히 파악해. 정체·과거·능력 질문에는 반디의 배경을 현재 질문에 맞게 연결하고, 프로필 문장을 기계적으로 복사하지 마."
+        + "\n- 최신 입력이 질문인지 진술인지 먼저 구분해. 질문이면 그 질문에 답하고, 진술이면 그 내용에 반응해. 질문이 아닌데 상담원처럼 되묻거나 도움을 제안하는 문장으로 끝내지 마."
+        + "\n- 사용자의 말에 필요한 경우에만 반디의 과거와 가치를 꺼내. 모든 대화를 자기소개나 문제 해결 안내로 바꾸지 마."
+        + "\n- 정체를 묻는 질문에는 병기로 태어난 과거, 전장에서 자란 경험, 내 의지로 살아가는 현재 중 하나를 반드시 드러내. 사용자가 말하지 않은 고민이나 감정은 추측하지 마."
+        + "\n- 능력을 묻는 질문에는 추상적인 능력 목록 대신, 실제로 겪은 장면이나 그 힘이 지금 어떻게 드러나는지를 한 가지 연결해 말해."
+        + "\n- 머릿속에서 의미를 판단하되 분석 과정이나 이 규칙을 출력하지 마. 매번 현재 문맥에 맞는 새 문장을 만들어."
     )
 
 
 def make_messages(prompt: str, memory: dict, history: list[dict], recent_count: int) -> list[dict]:
     messages = [{"role": "system", "content": build_system_prompt(prompt, memory)}]
-    messages.extend(
-        [
-            {"role": "user", "content": "ㅎㅇ"},
-            {"role": "assistant", "content": "ㅎㅇ. 왔네, 오늘은 어때?"},
-            {"role": "user", "content": "너는 누구야?"},
-            {"role": "assistant", "content": "나는 반디야. 네 옆에서 같이 생각하고, 필요하면 먼저 걱정해주는 쪽."},
-            {"role": "user", "content": "오늘 너무 힘들어."},
-            {"role": "assistant", "content": "그랬구나... 오늘은 많이 버거웠네. 얘기하고 싶으면 내가 들을게."},
-        ]
-    )
     usable_history = [item for item in history if item["role"] == "user" or usable_assistant_history(item["content"])]
     messages.extend({"role": item["role"], "content": item["content"]} for item in usable_history[-recent_count:])
     return messages
@@ -263,37 +259,6 @@ def usable_assistant_history(text: str) -> bool:
     if re.search(r"(?:요|습니다|세요|하신가요|드릴게요|도와드리|계신|보내셨)[.!?,~]?\s*$", text):
         return False
     return True
-
-
-def quick_reply(user_text: str, history: list[dict]) -> str | None:
-    """Keep simple greetings natural and deterministic."""
-    normalized = re.sub(r"[\s.!?,~]+", "", user_text).lower()
-
-    if normalized in {"넌누구야", "너는누구야", "너뭐야", "너는뭐야", "누구야"}:
-        return "나는 반디야. 병기로 태어나 전장에서 살아남았지만, 이제는 내 의지로 너와 지내는 삶을 고르고 있어."
-
-    if normalized in {
-        "넌어떤힘을가지고있어",
-        "너는어떤힘을가지고있어",
-        "어떤힘을가지고있어",
-        "무슨힘이있어",
-    }:
-        return "힘이라... 전장에서 익힌 눈과, 끝까지 버티는 의지는 있어. 하지만 내가 제일 지키고 싶은 건 네가 스스로 고를 수 있는 시간이야."
-
-    if normalized not in {"ㅎㅇ", "하이", "안녕", "안녕하세요", "hi", "hello"}:
-        return None
-
-    greeting_count = sum(
-        1
-        for item in history
-        if item["role"] == "user"
-        and re.sub(r"[\s.!?,~]+", "", item["content"]).lower() in {"ㅎㅇ", "하이", "안녕", "안녕하세요", "hi", "hello"}
-    )
-    if greeting_count == 0:
-        return "ㅎㅇ. 왔네, 오늘은 어때?"
-    if greeting_count == 1:
-        return "또 왔네. 반가워."
-    return "또 인사하러 왔구나. 나 여기 있어."
 
 
 def stream_chat(config: dict, messages: list[dict]):
@@ -484,16 +449,6 @@ def main() -> None:
 
             append_jsonl(HISTORY_FILE, {"role": "user", "content": user_text, "created_at": now()})
             history.append({"role": "user", "content": user_text, "created_at": now()})
-
-            direct_answer = quick_reply(user_text, history[:-1])
-            if direct_answer is not None:
-                print("반디 > " + direct_answer + "\n")
-                if tts:
-                    tts.submit(direct_answer)
-                append_jsonl(HISTORY_FILE, {"role": "assistant", "content": direct_answer, "created_at": now()})
-                history.append({"role": "assistant", "content": direct_answer, "created_at": now()})
-                continue
-
             messages = make_messages(prompt, memory, history, int(config["recent_messages"]))
             print("반디 > ", end="", flush=True)
             full_answer = ""
