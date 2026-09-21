@@ -381,17 +381,12 @@ class HanaApp:
     def _stream_answer(self, messages: list[dict], persist: bool) -> None:
         self.root.after(0, lambda: self._start_line("하나", "hana"))
         full = ""
-        sentences = SentenceBuffer()
         try:
             for piece in stream_chat(self.config, messages):
                 full += piece
                 self.root.after(0, lambda piece=piece: self._append_text(piece))
-                if self.tts:
-                    for sentence in sentences.feed(piece):
-                        self.tts.submit(sentence)
-            if self.tts:
-                for sentence in sentences.flush():
-                    self.tts.submit(sentence)
+            if self.tts and full.strip():
+                self.tts.submit(full)
             self.root.after(0, self._finish_line)
             self.last_response_at = time.monotonic()
         except Exception:

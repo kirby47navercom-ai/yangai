@@ -945,17 +945,12 @@ def main() -> None:
             )
             print("하나 > ", end="", flush=True)
             full_answer = ""
-            sentences = SentenceBuffer()
             try:
                 for piece in stream_chat(config, messages):
                     print(piece, end="", flush=True)
                     full_answer += piece
-                    if tts:
-                        for sentence in sentences.feed(piece):
-                            tts.submit(sentence)
-                if tts:
-                    for sentence in sentences.flush():
-                        tts.submit(sentence)
+                if tts and full_answer.strip():
+                    tts.submit(full_answer)
                 print("\n")
             except Exception as error:
                 print(f"\n[응답 실패: {error}]\n")
