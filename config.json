@@ -31,5 +31,5 @@
   "screen_proactive": true,
   "screen_reaction_cooldown": 15,
   "idle_talk_enabled": true,
-  "idle_talk_seconds": 15
+  "talk_after_speech_seconds": 3
 }

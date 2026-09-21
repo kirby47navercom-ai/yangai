@@ -125,7 +125,7 @@ def read_config() -> dict:
         "screen_proactive": True,
         "screen_reaction_cooldown": 15,
         "idle_talk_enabled": True,
-        "idle_talk_seconds": 15,
+        "talk_after_speech_seconds": 3,
     }
     defaults.update(config)
     return defaults
@@ -183,6 +183,7 @@ class TTSWorker:
         self.items: queue.Queue[str | None] = queue.Queue()
         self.enabled = True
         self.speaking = threading.Event()
+        self.last_finished_at = 0.0
         self.stop_event = threading.Event()
         self.process_lock = threading.Lock()
         self.process: subprocess.Popen | None = None
@@ -221,6 +222,7 @@ class TTSWorker:
                 print(f"\n[TTS가 꺼졌어: {error}]", flush=True)
             finally:
                 self.speaking.clear()
+                self.last_finished_at = time.monotonic()
 
     def _speak(self, text: str) -> None:
         with tempfile.NamedTemporaryFile(prefix="hana_", suffix=".wav", dir=self.data_dir, delete=False) as file:

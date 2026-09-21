@@ -118,7 +118,8 @@ class HanaApp:
         self.chat_busy = threading.Event()
         self.chat_queue: queue.Queue[tuple[str, str]] = queue.Queue()
         self.last_user_activity_at = time.monotonic()
-        self.last_auto_activity_at = time.monotonic()
+        self.last_response_at = time.monotonic()
+        self.last_auto_requested_at = self.last_response_at
         self.last_idle_requested_at = 0.0
         self.screen_context = ScreenContext()
         self.tts = self._create_tts()
@@ -233,31 +234,36 @@ class HanaApp:
         self.root.after(0, lambda: self._system(f"마이크를 사용할 수 없어: {error}"))
 
     def _on_screen_observation(self, observation: str) -> None:
-        self.last_auto_activity_at = time.monotonic()
         self.root.after(0, lambda: self.status.configure(text=f"화면 읽음: {observation[:32]}"))
-        if self.config.get("screen_proactive", True):
-            self.chat_queue.put(("screen", observation))
 
     def _on_screen_error(self, error: str) -> None:
         self.root.after(0, lambda: self._system(f"화면을 읽을 수 없어: {error or '알 수 없는 오류'}"))
 
     def _idle_loop(self) -> None:
-        idle_seconds = max(10.0, float(self.config.get("idle_talk_seconds", 25)))
+        delay = max(1.0, float(self.config.get("talk_after_speech_seconds", 3)))
         while not self.stop_event.wait(1.0):
             if not self.config.get("idle_talk_enabled", True):
-                continue
-            if self.tts and self.tts.speaking.is_set():
                 continue
             if self.chat_busy.is_set():
                 continue
             if not self.chat_queue.empty():
                 continue
-            last_activity = max(self.last_user_activity_at, self.last_auto_activity_at)
-            if time.monotonic() - last_activity < idle_seconds:
+            if self._tts_busy():
                 continue
-            self.last_auto_activity_at = time.monotonic()
-            self.last_idle_requested_at = self.last_auto_activity_at
+            if self.watcher.running() and not self.screen_context.read():
+                continue
+            reference = max(self.last_response_at, self.last_auto_requested_at)
+            if self.tts and self.tts.enabled:
+                reference = max(reference, self.tts.last_finished_at)
+            requested_at = time.monotonic()
+            if requested_at - reference < delay:
+                continue
+            self.last_auto_requested_at = requested_at
+            self.last_idle_requested_at = requested_at
             self.chat_queue.put(("idle", ""))
+
+    def _tts_busy(self) -> bool:
+        return bool(self.tts and (self.tts.speaking.is_set() or not self.tts.items.empty()))
 
     def _queue_user(self, text: str, source: str = "입력") -> None:
         text = text.strip()
@@ -282,8 +288,6 @@ class HanaApp:
                 self.chat_busy.set()
                 if kind == "user":
                     self._answer_user(payload)
-                elif kind == "screen":
-                    self._answer_screen(payload)
                 else:
                     self._answer_idle()
             except Exception as error:
@@ -346,16 +350,18 @@ class HanaApp:
             {
                 "role": "user",
                 "content": (
-                    "방송 중인데 잠깐 조용했어. 하나가 지금 보고 있는 화면과 지금까지의 분위기를 바탕으로 "
-                    "억지 질문이나 상담 멘트가 아닌 짧은 방송 멘트를 한두 문장으로 반드시 자연스럽게 해. "
+                    "하나가 방금 말을 마치고 3초 쉬었어. 방송을 계속 이어가야 해. "
+                    "사용자나 채팅이 먼저 말을 걸 때까지 기다리지 말고, 하나가 지금 보고 있는 화면과 "
+                    "방송 분위기를 바탕으로 게임 버튜버다운 짧은 멘트를 한두 문장으로 반드시 자연스럽게 해. "
                     "화면에 특별한 일이 없으면 지금 방송 분위기나 하나의 가벼운 생각을 말하고, 질문으로 끝내지 마. "
                     "[SILENT]는 출력하지 마."
                 ),
             }
         )
         answer = "".join(stream_chat(self.config, messages)).strip()
-        if not answer or "[SILENT]" in answer.upper():
+        if not answer:
             return
+        self.last_response_at = time.monotonic()
         self.root.after(0, lambda: self._line("하나", answer, "hana"))
         self._speak(answer)
 
@@ -374,6 +380,7 @@ class HanaApp:
                 for sentence in sentences.flush():
                     self.tts.submit(sentence)
             self.root.after(0, self._finish_line)
+            self.last_response_at = time.monotonic()
         except Exception:
             self.root.after(0, self._finish_line)
             raise
