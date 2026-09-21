@@ -404,7 +404,6 @@ class HanaApp:
         )
         answer = self._stream_and_speak(
             messages,
-            num_predict=int(self.config.get("idle_num_predict", 128)),
             timeout=float(self.config.get("idle_response_timeout", 45)),
         )
         if not answer:
