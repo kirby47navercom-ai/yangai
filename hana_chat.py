@@ -179,7 +179,7 @@ class SentenceBuffer:
         self.buffer += text
         output = []
         while True:
-            match = re.search(r"(.+?[。！？!?])\s*", self.buffer, flags=re.S)
+            match = re.search(r"(.+?(?:[。！？!?]|\.(?=\s|$)))\s*", self.buffer, flags=re.S)
             if not match:
                 break
             sentence = match.group(1).strip()

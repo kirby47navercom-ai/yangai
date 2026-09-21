@@ -396,20 +396,25 @@ class HanaApp:
         self.last_response_at = time.monotonic()
 
     def _stream_and_speak(self, messages: list[dict]) -> str:
-        self.root.after(0, lambda: self._start_line("하나", "hana"))
         full = ""
         sentence_buffer = SentenceBuffer()
+        started = False
         try:
             for piece in stream_chat(self.config, messages):
                 full += piece
+                if piece and not started:
+                    started = True
+                    self.root.after(0, lambda: self._start_line("하나", "hana"))
                 self.root.after(0, lambda piece=piece: self._append_text(piece))
                 for sentence in sentence_buffer.feed(piece):
                     self._speak(sentence)
             for sentence in sentence_buffer.flush():
                 self._speak(sentence)
-            self.root.after(0, self._finish_line)
+            if started:
+                self.root.after(0, self._finish_line)
         except Exception:
-            self.root.after(0, self._finish_line)
+            if started:
+                self.root.after(0, self._finish_line)
             raise
         return full.strip()
 
