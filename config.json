@@ -20,6 +20,8 @@
   "gpt_sovits_streaming_mode": 0,
   "num_ctx": 4096,
   "num_predict": 384,
+  "idle_num_predict": 128,
+  "idle_response_timeout": 45,
   "temperature": 0.6,
   "top_p": 0.9,
   "keep_alive": "10m",

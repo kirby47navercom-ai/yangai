@@ -334,6 +334,7 @@ class HanaApp:
                 else:
                     self._answer_idle()
             except Exception as error:
+                self._runtime_log(f"chat loop error: {type(error).__name__}: {error}")
                 self.root.after(0, lambda error=error: self._system(f"응답을 만들 수 없어: {error}"))
             finally:
                 self.chat_busy.clear()
@@ -375,9 +376,7 @@ class HanaApp:
         )
         answer = self._stream_and_speak(messages)
         if not answer:
-            self._runtime_log("idle response was empty")
             return
-        self._runtime_log(f"idle response received: {len(answer)} chars")
 
     def _answer_idle(self) -> None:
         if self.last_user_activity_at > self.last_idle_requested_at:
@@ -403,21 +402,32 @@ class HanaApp:
                 ),
             }
         )
-        answer = self._stream_and_speak(messages)
+        answer = self._stream_and_speak(
+            messages,
+            num_predict=int(self.config.get("idle_num_predict", 128)),
+            timeout=float(self.config.get("idle_response_timeout", 45)),
+        )
         if not answer:
+            self._runtime_log("idle response was empty")
             return
+        self._runtime_log(f"idle response received: {len(answer)} chars")
         created_at = now()
         append_jsonl(self.history_file, {"role": "assistant", "content": answer, "created_at": created_at})
         self.history.append({"role": "assistant", "content": answer, "created_at": created_at})
         save_memory_snapshot(self.memory, self.history, self.screen_context.prompt())
         self.last_response_at = time.monotonic()
 
-    def _stream_and_speak(self, messages: list[dict]) -> str:
+    def _stream_and_speak(
+        self,
+        messages: list[dict],
+        num_predict: int | None = None,
+        timeout: float = 180,
+    ) -> str:
         full = ""
         sentence_buffer = SentenceBuffer()
         started = False
         try:
-            for piece in stream_chat(self.config, messages):
+            for piece in stream_chat(self.config, messages, num_predict=num_predict, timeout=timeout):
                 full += piece
                 if piece and not started:
                     started = True

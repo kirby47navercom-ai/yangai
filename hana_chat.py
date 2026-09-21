@@ -933,7 +933,12 @@ def usable_assistant_history(text: str) -> bool:
     return True
 
 
-def stream_chat(config: dict, messages: list[dict]):
+def stream_chat(
+    config: dict,
+    messages: list[dict],
+    num_predict: int | None = None,
+    timeout: float = 180,
+):
     payload = {
         "model": config["model"],
         "messages": messages,
@@ -942,7 +947,7 @@ def stream_chat(config: dict, messages: list[dict]):
         "keep_alive": config["keep_alive"],
         "options": {
             "num_ctx": config["num_ctx"],
-            "num_predict": config["num_predict"],
+            "num_predict": num_predict if num_predict is not None else config["num_predict"],
             "temperature": config["temperature"],
             "top_p": config["top_p"],
         },
@@ -954,7 +959,7 @@ def stream_chat(config: dict, messages: list[dict]):
         method="POST",
     )
     try:
-        response = urlopen(request, timeout=180)
+        response = urlopen(request, timeout=timeout)
     except HTTPError as error:
         detail = error.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"Ollama 오류 {error.code}: {detail[:300]}") from error
