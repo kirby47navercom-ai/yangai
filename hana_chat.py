@@ -161,7 +161,6 @@ def read_config() -> dict:
         "screen_reaction_cooldown": 15,
         "idle_talk_enabled": True,
         "talk_after_speech_seconds": 3,
-        "max_idle_comments_per_scene": 3,
     }
     defaults.update(config)
     return defaults

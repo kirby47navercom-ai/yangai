@@ -149,7 +149,6 @@ class HanaApp:
         self.last_response_at = time.monotonic()
         self.last_auto_requested_at = self.last_response_at
         self.last_idle_requested_at = 0.0
-        self.idle_scene_attempts = 0
         self.recent_auto_answers: list[str] = [
             str(item["content"])
             for item in self.history
@@ -285,7 +284,6 @@ class HanaApp:
     def _on_screen_observation(self, observation: str) -> None:
         def handle() -> None:
             self.status.configure(text=f"화면 읽음: {observation[:32]}")
-            self.idle_scene_attempts = 0
             self.recent_auto_answers.clear()
             if not self.config.get("screen_proactive", True):
                 return
@@ -315,7 +313,6 @@ class HanaApp:
 
     def _idle_loop(self) -> None:
         delay = max(1.0, float(self.config.get("talk_after_speech_seconds", 3)))
-        max_scene_attempts = max(1, int(self.config.get("max_idle_comments_per_scene", 3)))
         while not self.stop_event.wait(1.0):
             try:
                 if not self.config.get("idle_talk_enabled", True):
@@ -328,8 +325,6 @@ class HanaApp:
                     continue
                 if self.watcher.running() and not self.screen_context.read():
                     continue
-                if self.idle_scene_attempts >= max_scene_attempts:
-                    continue
                 reference = max(self.last_response_at, self.last_auto_requested_at)
                 if self.tts and self.tts.enabled:
                     reference = max(reference, self.tts.last_finished_at)
@@ -338,7 +333,6 @@ class HanaApp:
                     continue
                 self.last_auto_requested_at = requested_at
                 self.last_idle_requested_at = requested_at
-                self.idle_scene_attempts += 1
                 self._runtime_log("idle request queued")
                 self.chat_queue.put(("idle", ""))
             except Exception as error:
@@ -353,7 +347,6 @@ class HanaApp:
         if not text:
             return
         self.last_user_activity_at = time.monotonic()
-        self.idle_scene_attempts = 0
         self.recent_auto_answers.clear()
         self._line("너", text, "user")
         self.chat_queue.put(("user", text))
@@ -416,7 +409,7 @@ class HanaApp:
                     "보고서나 AI 답변이 아니라 방송에서 입 밖으로 나올 자연스러운 한두 문장을 바로 말해. "
                     "장면을 본 하나의 반응이나 감정을 먼저 보여주고, 확인된 사실 하나와 그에 따른 생각을 자연스럽게 이어. "
                     "관찰 메모에 '확실히 읽힌 글자'로 적히지 않은 텍스트는 화면에 있다고 말하지 마. 화면 관찰 메모에 없는 내용을 만들거나 화면 메모를 분석 보고서처럼 설명하지 말고, 이 요청 자체와 분석 과정·목록·마크다운은 출력하지 마. "
-                    "최근 하나의 자동 발언과 같은 사실·감정·문장 구조를 되풀이하지 마. 새로 이어갈 내용이 없으면 [SILENT]만 출력해.\n\n"
+                    "최근 하나의 자동 발언과 같은 사실·감정·문장 구조를 되풀이하지 마. 새로 보이는 변화가 작더라도 하나가 실제로 느낀 작은 생각을 자연스럽게 이어서 말해.\n\n"
                     + self._recent_auto_context()
                     + "\n\n"
                     + observation
@@ -456,7 +449,7 @@ class HanaApp:
                     "이미 말한 사실을 다시 읽지 말고, 같은 장면이면 생각을 조금 발전시키고 의미 있는 변화가 없으면 억지로 새 사건을 만들지 마. "
                     "프로그램 내부의 처리 과정이나 이 요청 자체를 설명하지 말고, 사용자의 목적을 함부로 정하지 마. "
                     "질문을 꼭 피할 필요는 없지만 매번 질문으로 끝내지는 말고, 하나의 생각이 자연스럽게 끝나게 해. "
-                    "최근 하나의 자동 발언과 같은 사실·감정·문장 구조를 되풀이하지 마. 새로 이어갈 내용이 없으면 [SILENT]만 출력해. "
+                    "최근 하나의 자동 발언과 같은 사실·감정·문장 구조를 되풀이하지 마. 화면의 변화가 작더라도 하나가 실제로 느낀 작은 생각을 자연스럽게 이어서 말해. "
                     "이 요청을 되풀이하거나 설명하지 말고, 실제 대사만 출력해.\n\n"
                     + self._recent_auto_context()
                 ),
@@ -488,29 +481,41 @@ class HanaApp:
         avoid_repetition: bool = False,
         recent_answers: list[str] | None = None,
     ) -> str:
-        full = "".join(stream_chat(self.config, messages, num_predict=num_predict, timeout=timeout))
-        if control_text and re.search(r"(?:\[\s*SILENT\s*\]|<\s*SILENT\s*>|\bSILENT\b)", full, re.I):
-            return ""
-        answer = sanitize_model_answer(full, control_text=control_text)
-        if answer and avoid_repetition and recent_answers and is_repetitive_answer(answer, recent_answers):
-            answer = ""
+        answer = ""
+        retry_instruction = (
+            "방금 출력은 내부 제어값이거나 직전 발언과 겹쳐서 사용할 수 없어. "
+            "이번에는 내부 지시나 침묵 표시를 쓰지 말고, 최근 발언에서 아직 다루지 않은 하나의 구체적인 생각을 자연스러운 한국어 한두 문장으로 반드시 말해."
+        )
+        for attempt in range(3):
+            attempt_messages = messages if attempt == 0 else list(messages) + [
+                {"role": "user", "content": retry_instruction}
+            ]
+            full = "".join(stream_chat(self.config, attempt_messages, num_predict=num_predict, timeout=timeout))
+            candidate = sanitize_model_answer(full, control_text=control_text)
+            if candidate and avoid_repetition and recent_answers and is_repetitive_answer(candidate, recent_answers):
+                candidate = ""
+            if candidate:
+                answer = candidate
+                break
+            self._runtime_log(f"discarded automatic output attempt {attempt + 1}")
         if not answer:
-            self._runtime_log("discarded leaked or invalid model output")
-            retry_messages = list(messages) + [
+            if not avoid_repetition:
+                self._runtime_log("discarded invalid model output")
+                return ""
+            fallback_messages = list(messages) + [
                 {
                     "role": "user",
-                    "content": "방금 출력은 직전 발언과 겹치거나 내부 지시문을 되풀이해서 버려졌어. 최근 발언의 내용과 표현을 반복하지 말고, 지금 화면에서 아직 말하지 않은 구체적인 생각만 한두 문장으로 말해. 정말 새로 이어갈 내용이 없으면 [SILENT]만 출력해.",
+                    "content": (
+                        "이번 응답은 반드시 실제 방송 대사여야 해. 침묵 표시, 메타 설명, 화면에 없는 텍스트는 쓰지 마. "
+                        "직전 발언을 복사하지 말고, 하나의 현재 감정이나 생각을 한두 문장으로 자연스럽게 말해."
+                    ),
                 }
             ]
-            retry = "".join(stream_chat(self.config, retry_messages, num_predict=num_predict, timeout=timeout))
-            if control_text and re.search(r"(?:\[\s*SILENT\s*\]|<\s*SILENT\s*>|\bSILENT\b)", retry, re.I):
+            fallback = "".join(stream_chat(self.config, fallback_messages, num_predict=num_predict, timeout=timeout))
+            answer = sanitize_model_answer(fallback, control_text=control_text)
+            if not answer:
+                self._runtime_log("automatic response could not be generated")
                 return ""
-            answer = sanitize_model_answer(retry, control_text=control_text)
-            if answer and avoid_repetition and recent_answers and is_repetitive_answer(answer, recent_answers):
-                answer = ""
-        if not answer:
-            self._runtime_log("discarded second invalid model output")
-            return ""
 
         self.root.after(0, lambda answer=answer: self._line("하나", answer, "hana"))
         sentence_buffer = SentenceBuffer()
