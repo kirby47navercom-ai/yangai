@@ -247,6 +247,28 @@ def clean_for_speech(text: str) -> str:
     return text
 
 
+def sanitize_model_answer(text: str) -> str:
+    """Return only spoken character text; discard leaked control prompts."""
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S | re.I).strip()
+    blocked = (
+        "[SILENT]",
+        "하나가 방금 말을 마치고",
+        "하나가 말을 마치고",
+        "사용자나 채팅이 먼저 말을 걸 때까지 기다리지",
+        "방송을 계속 이어가야 해",
+        "게임 버튜버다운 짧은 멘트를",
+        "화면을 언급한다면 무엇이 보이는지만",
+        "직전 하나의 말과 지금까지의 방송 흐름",
+        "난 화면에 있는 내용을 직접 볼 수 없지만",
+        "네가 말해준 정보를 바탕으로 생각해",
+    )
+    if any(marker in text for marker in blocked):
+        return ""
+    if re.search(r"(?:내부|시스템) 지시|프롬프트|출력 규칙|분석 과정", text, re.I):
+        return ""
+    return text.strip()
+
+
 class SentenceBuffer:
     def __init__(self) -> None:
         self.buffer = ""
@@ -529,9 +551,13 @@ class GPTSoVITSTTSWorker:
                     **os.environ,
                     "PYTHONUTF8": "1",
                     "NLTK_DATA": str(
-                        self.config.get(
-                            "gpt_sovits_nltk_data",
-                            self.root.parent / "nltk_data",
+                        os.path.expandvars(
+                            str(
+                                self.config.get(
+                                    "gpt_sovits_nltk_data",
+                                    self.root.parent / "nltk_data",
+                                )
+                            )
                         )
                     ),
                     "PATH": os.path.expandvars(str(self.config.get("gpt_sovits_ffmpeg", "")))

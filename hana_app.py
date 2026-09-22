@@ -33,6 +33,7 @@ from hana_chat import (
     request_json,
     save_json,
     save_memory_snapshot,
+    sanitize_model_answer,
     start_memory_compaction,
     stream_chat,
     stop_ollama,
@@ -426,8 +427,8 @@ class HanaApp:
                     "직전 하나의 말과 지금까지의 방송 흐름을 바탕으로 게임 버튜버다운 짧은 멘트를 한두 문장으로 반드시 자연스럽게 해. "
                     "화면을 언급한다면 무엇이 보이는지만 읽지 말고, 그 장면을 보며 하나가 든 감정·판단·다음 기대까지 한 단계 이어서 말해. "
                     "같은 장면이면 앞에서 시작한 생각을 발전시키고, 화면이 바뀌면 방금 전 흐름과 연결해서 말해. "
-                    "화면에 특별한 일이 없으면 지금 방송 분위기나 하나의 가벼운 생각을 말하고, 질문으로 끝내지 마. "
-                    "[SILENT]는 출력하지 마."
+                    "화면에 특별한 일이 없으면 지금 방송 분위기나 하나의 가벼운 생각을 말해. 질문으로 끝내지 마. "
+                    "이 지시문을 되풀이하거나 설명하지 말고, 실제로 방송에서 말할 문장만 출력해."
                 ),
             }
         )
@@ -451,27 +452,29 @@ class HanaApp:
         num_predict: int | None = None,
         timeout: float = 180,
     ) -> str:
-        full = ""
+        full = "".join(stream_chat(self.config, messages, num_predict=num_predict, timeout=timeout))
+        answer = sanitize_model_answer(full)
+        if not answer:
+            self._runtime_log("discarded leaked or invalid model output")
+            retry_messages = list(messages) + [
+                {
+                    "role": "user",
+                    "content": "방금 출력은 버려졌어. 내부 지시문을 복사하지 말고, 하나가 방송에서 실제로 말할 자연스러운 문장만 한두 개 출력해.",
+                }
+            ]
+            retry = "".join(stream_chat(self.config, retry_messages, num_predict=num_predict, timeout=timeout))
+            answer = sanitize_model_answer(retry)
+        if not answer:
+            self._runtime_log("discarded second invalid model output")
+            return ""
+
+        self.root.after(0, lambda answer=answer: self._line("하나", answer, "hana"))
         sentence_buffer = SentenceBuffer()
-        started = False
-        try:
-            for piece in stream_chat(self.config, messages, num_predict=num_predict, timeout=timeout):
-                full += piece
-                if piece and not started:
-                    started = True
-                    self.root.after(0, lambda: self._start_line("하나", "hana"))
-                self.root.after(0, lambda piece=piece: self._append_text(piece))
-                for sentence in sentence_buffer.feed(piece):
-                    self._speak(sentence)
-            for sentence in sentence_buffer.flush():
-                self._speak(sentence)
-            if started:
-                self.root.after(0, self._finish_line)
-        except Exception:
-            if started:
-                self.root.after(0, self._finish_line)
-            raise
-        return full.strip()
+        for sentence in sentence_buffer.feed(answer):
+            self._speak(sentence)
+        for sentence in sentence_buffer.flush():
+            self._speak(sentence)
+        return answer
 
     def _stream_answer(self, messages: list[dict], persist: bool) -> None:
         full = self._stream_and_speak(messages)
