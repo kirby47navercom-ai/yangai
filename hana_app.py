@@ -149,6 +149,7 @@ class HanaApp:
         self.last_response_at = time.monotonic()
         self.last_auto_requested_at = self.last_response_at
         self.last_idle_requested_at = 0.0
+        self.emergency_auto_line_index = 0
         self.recent_auto_answers: list[str] = [
             str(item["content"])
             for item in self.history
@@ -514,8 +515,8 @@ class HanaApp:
             fallback = "".join(stream_chat(self.config, fallback_messages, num_predict=num_predict, timeout=timeout))
             answer = sanitize_model_answer(fallback, control_text=control_text)
             if not answer:
-                self._runtime_log("automatic response could not be generated")
-                return ""
+                answer = self._emergency_broadcast_line()
+                self._runtime_log("model output was empty; emergency broadcast line used")
 
         self.root.after(0, lambda answer=answer: self._line("하나", answer, "hana"))
         sentence_buffer = SentenceBuffer()
@@ -527,6 +528,44 @@ class HanaApp:
             self.recent_auto_answers.append(answer)
             del self.recent_auto_answers[:-6]
         return answer
+
+    def _emergency_broadcast_line(self) -> str:
+        """Keep the broadcast audible when the model returns only control text."""
+        observation = self.screen_context.read()
+        confirmed_text = ""
+        scene = ""
+        for field in observation.split(";"):
+            key, separator, value = field.partition(":")
+            if not separator:
+                continue
+            value = value.strip()
+            if key.strip() == "확실히 읽힌 글자" and value != "없음":
+                confirmed_text = value
+            elif key.strip() == "장면" and value != "없음":
+                scene = value
+
+        if confirmed_text:
+            lines = (
+                f"음, 지금은 ‘{confirmed_text}’가 눈에 들어오네. 이 흐름이 어디로 이어질지 조금 더 보고 있을게.",
+                f"‘{confirmed_text}’가 보이는 걸 보니 장면의 중심은 잡혀 있네. 서두르지 말고 다음 변화를 기다려보자.",
+                f"지금 화면에서 ‘{confirmed_text}’가 눈에 띄어. 아직 결론을 내리긴 이르니까, 나는 계속 흐름을 따라갈게.",
+            )
+        elif scene:
+            lines = (
+                f"지금은 {scene} 쪽 흐름이 이어지고 있네. 큰 변화가 생기는지 조금 더 지켜볼게.",
+                f"이 장면은 아직 급하게 판단할 때는 아닌 것 같아. {scene}의 흐름을 놓치지 않고 보고 있을게.",
+                f"{scene} 분위기가 남아 있네. 잠깐 조용히 따라가면서 다음 장면을 기다려볼게.",
+            )
+        else:
+            lines = (
+                "음, 아직 장면이 크게 움직이진 않았네. 그래도 흐름은 놓치지 않고 보고 있어.",
+                "지금은 조용한 구간이야. 서두르지 않고 화면의 다음 변화를 기다려볼게.",
+                "잠깐 숨을 고르는 장면 같네. 작은 변화라도 생기면 그때 이어서 말할게.",
+            )
+
+        line = lines[self.emergency_auto_line_index % len(lines)]
+        self.emergency_auto_line_index += 1
+        return line
 
     def _recent_auto_context(self) -> str:
         if not self.recent_auto_answers:
