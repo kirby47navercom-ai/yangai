@@ -13,7 +13,7 @@
 | 로컬 대화 생성 | Ollama의 `qwen3:8b` 모델을 사용하여 캐릭터 프롬프트, 대화 이력, 기억, 화면 흐름을 함께 해석합니다. |
 | 자동 Ollama 관리 | 하나를 실행할 때 로컬 Ollama 서버가 꺼져 있으면 `ollama serve`를 자동으로 시작합니다. 하나가 직접 시작한 프로세스만 종료 시 정리합니다. |
 | 마이크 대화 | `faster-whisper`로 사용자의 음성을 인식합니다. 별도의 채팅 입력 없이도 방송 중 음성 대화를 진행할 수 있습니다. |
-| 화면 관찰 | `qwen3-vl:4b`로 전체 화면 또는 사용자가 선택한 창을 주기적으로 분석합니다. |
+| 화면 관찰 | `qwen2.5vl:3b`로 전체 화면 또는 사용자가 선택한 창을 주기적으로 분석합니다. |
 | 선제적 방송 | 사용자의 입력을 기다리지 않고 화면의 변화, 게임 상황, 방송 분위기를 바탕으로 하나가 먼저 말할 수 있습니다. |
 | GPT-SoVITS 음성 | `v2ProPlus`의 GPT-SoVITS 서버를 사용하여 설정된 참조 음성으로 하나의 음성을 생성합니다. 문장 단위로 생성·재생하여 전체 답변이 끝날 때까지 기다리지 않습니다. |
 | Piper 음성 대체 | GPT-SoVITS를 사용할 수 없을 때 로컬 Piper 음성으로 대체할 수 있습니다. |
@@ -25,7 +25,7 @@
 하나는 다음 구성 요소를 함께 사용합니다.
 
 1. **대화 모델**: Ollama의 `qwen3:8b`
-2. **화면 모델**: Ollama의 `qwen3-vl:4b`
+2. **화면 모델**: Ollama의 `qwen2.5vl:3b`
 3. **음성 인식**: `faster-whisper`의 `small` 모델
 4. **기본 음성 합성**: GPT-SoVITS v2ProPlus
 5. **대체 음성 합성**: Piper 한국어 음성
@@ -49,7 +49,7 @@
 - Python 설치 환경
 - Ollama 설치
 - 대화 모델 `qwen3:8b`
-- 화면 모델 `qwen3-vl:4b`
+- 화면 모델 `qwen2.5vl:3b`
 - 마이크 사용 시 정상적으로 연결된 입력 장치
 - GPT-SoVITS 음성 사용 시 `v2ProPlus` 설치 환경과 참조 음성 파일
 
@@ -84,7 +84,7 @@ Ollama가 설치되어 있지 않은 경우 먼저 Windows용 Ollama를 설치�
 - 한국어 Piper 음성 모델 다운로드
 - Piper가 사용할 `espeak-ng-data` 복사
 - `qwen3:8b` 대화 모델 확인 및 다운로드
-- `qwen3-vl:4b` 화면 모델 확인 및 다운로드
+- `qwen2.5vl:3b` 화면 모델 확인 및 다운로드
 
 GPT-SoVITS는 별도의 `v2ProPlus` 환경을 사용하므로 `setup_hana.bat`이 GPT-SoVITS 자체를 설치하지는 않습니다.
 
@@ -240,13 +240,13 @@ data\memory.json
 | 항목 | 기본값 | 설명 |
 | --- | --- | --- |
 | `model` | `qwen3:8b` | 대화와 캐릭터 답변을 생성하는 모델입니다. |
-| `vision_model` | `qwen3-vl:4b` | 화면과 이미지 내용을 분석하는 모델입니다. |
+| `vision_model` | `qwen2.5vl:3b` | 화면과 이미지 내용을 분석하는 모델입니다. |
 | `ollama_url` | `http://127.0.0.1:11434` | Ollama API 주소입니다. 로컬 자동 시작은 로컬 주소에서만 동작합니다. |
 | `num_ctx` | `4096` | 대화 모델의 컨텍스트 크기입니다. |
 | `num_predict` | `384` | 일반 답변 생성에 사용할 최대 토큰 수입니다. |
 | `recent_messages` | `16` | 현재 답변에 직접 전달할 최근 대화 수입니다. |
 | `screen_interval` | `5` | 화면 관찰 간격입니다. 초 단위입니다. |
-| `vision_response_timeout` | `15` | 화면 분석 요청의 최대 대기 시간입니다. |
+| `vision_response_timeout` | `30` | 화면 분석 요청의 최대 대기 시간입니다. |
 | `screen_capture_mode` | `screen` | `screen`은 전체 화면, `window`는 선택한 창을 사용합니다. |
 | `tts_engine` | `gpt_sovits` | `gpt_sovits` 또는 `piper`를 사용할 수 있습니다. |
 | `tts_enabled` | `true` | 음성 출력을 켜거나 끕니다. |
@@ -314,7 +314,7 @@ ollama list
 
 ```powershell
 ollama pull qwen3:8b
-ollama pull qwen3-vl:4b
+ollama pull qwen2.5vl:3b
 ```
 
 ### 음성이 나오지 않는 경우
@@ -327,7 +327,7 @@ ollama pull qwen3-vl:4b
 ### 화면을 제대로 읽지 못하는 경우
 
 - 화면 관찰이 켜져 있는지 확인합니다.
-- `qwen3-vl:4b` 모델이 설치되어 있는지 확인합니다.
+- `qwen2.5vl:3b` 모델이 설치되어 있는지 확인합니다.
 - 전체 화면 모드와 특정 창 모드를 바꾸어 확인합니다.
 - 화면 모델은 작은 글자나 복잡한 화면을 항상 정확하게 읽지는 못합니다.
 - 화면 분석이 15초를 초과하면 해당 분석을 중단하고 대화 처리를 우선합니다.

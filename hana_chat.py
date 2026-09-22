@@ -139,12 +139,12 @@ def read_config() -> dict:
         "recent_messages": 16,
         "summary_every_user_turns": 8,
         "auto_memory": True,
-        "vision_model": "qwen3-vl:4b",
+        "vision_model": "qwen2.5vl:3b",
         "screen_interval": 5,
         "screen_monitor": 0,
-        "vision_num_predict": 2048,
-        "vision_question_num_predict": 4096,
-        "vision_response_timeout": 15,
+        "vision_num_predict": 256,
+        "vision_question_num_predict": 512,
+        "vision_response_timeout": 30,
         "stt_model": "small",
         "stt_device": "cpu",
         "stt_compute_type": "int8",
@@ -673,7 +673,7 @@ class ScreenContext:
         for index, observation in enumerate(previous, start=1):
             label = "직전 관찰" if index == 1 else f"{index}번 전 관찰"
             lines.append(f"{label}: {observation}")
-            return "\n".join(lines)
+        return "\n".join(lines)
 
 
 def list_visible_windows() -> list[tuple[str, tuple[int, int, int, int], int]]:
@@ -765,6 +765,7 @@ class ScreenWatcher:
             return True
         self.stop_event.clear()
         self.last_error = ""
+        self.context.update("")
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
         return True
@@ -814,7 +815,7 @@ class ScreenWatcher:
                 model=self.config.get("vision_model"),
                 images=[image],
                 num_predict=int(self.config.get("vision_question_num_predict", 4096)),
-                timeout=float(self.config.get("vision_response_timeout", 15)),
+                timeout=float(self.config.get("vision_response_timeout", 30)),
             )
 
     def _run(self) -> None:
@@ -878,27 +879,38 @@ class ScreenWatcher:
                                     {
                                         "role": "user",
                                         "content": (
-                                            "게임 방송 중인 버튜버가 참고할 화면 관찰이야. "
-                                            "앱 이름, 문서 제목, 게임 상태, 큰 글자처럼 화면을 식별할 수 있는 내용을 "
-                                            "우선 읽고, 현재 장면을 한두 문장으로 구체적으로 설명해. "
-                                            "직전 관찰과 비교해서 장면이 이어지는지, 무엇이 바뀌었는지, "
-                                            "그 변화가 방송 흐름에서 어떤 의미인지 함께 판단해. 변화가 없으면 "
-                                            "같은 장면을 매번 새 사건처럼 말하지 말고 현재 상태를 유지해. "
-                                            "반드시 자연스러운 한국어만 사용하고, 마크다운·목록·분석 과정·추측은 금지해. "
-                                            "작은 글자는 보이는 범위에서만 읽고, 읽기 어렵다고 화면 전체를 못 봤다고 하지 마.\n\n"
+                                            "너는 방송 멘트를 만드는 모듈이 아니라, 하나가 실제로 보고 있는 화면을 기록하는 관찰 모듈이야. "
+                                            "화면에 실제로 보이는 앱 이름, 창 제목, 게임 상태, 큰 글자와 장면만 짧고 구체적으로 적어. "
+                                            "화면에 없는 서버 상태, 코드 내용, 게임 진행, 사용자의 행동은 추측하지 마. "
+                                            "읽기 어려운 글자는 억지로 해석하지 말고 확인되는 큰 요소만 말해. "
+                                            "직전 관찰과 비교해 바뀐 점이 실제로 보일 때만 덧붙여. "
+                                            "자연스러운 한국어 한두 문장만 반환하고 분석 과정, 목록, 마크다운은 쓰지 마.\n\n"
                                             + continuity
                                         ),
                                     }
                                 ],
                                 model=vision_model,
                                 images=[encoded],
-                                timeout=float(self.config.get("vision_response_timeout", 15)),
+                                timeout=float(self.config.get("vision_response_timeout", 30)),
                             )
+                    except Exception as error:
+                        previous_error = self.last_error
+                        self.last_error = str(error) or type(error).__name__
+                        self.context.update("")
+                        if (
+                            self.on_error
+                            and not self.stop_event.is_set()
+                            and self.last_error != previous_error
+                        ):
+                            self.on_error(self.last_error)
+                        self.stop_event.wait(min(interval, 2.0))
+                        continue
                     finally:
                         self.request_active.clear()
                     if self.stop_event.is_set():
                         return
                     if observation:
+                        self.last_error = ""
                         self.context.update(observation)
                         normalized = re.sub(r"\s+", " ", observation).strip()
                         cooldown = float(self.config.get("screen_reaction_cooldown", 20))
@@ -1096,7 +1108,10 @@ def one_shot(
         "options": {"num_ctx": config["num_ctx"], "num_predict": output_budget, "temperature": 0.2},
     }
     result = request_json(config["ollama_url"].rstrip("/") + "/api/chat", payload, timeout=timeout)
-    return result.get("message", {}).get("content", "").strip()
+    content = result.get("message", {}).get("content", "").strip()
+    if images and not content:
+        raise RuntimeError("화면 모델이 최종 관찰 내용을 반환하지 않았어.")
+    return content
 
 
 memory_lock = threading.Lock()

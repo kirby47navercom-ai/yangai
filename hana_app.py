@@ -268,7 +268,15 @@ class HanaApp:
         self.root.after(0, lambda: self._system(f"마이크를 사용할 수 없어: {error}"))
 
     def _on_screen_observation(self, observation: str) -> None:
-        self.root.after(0, lambda: self.status.configure(text=f"화면 읽음: {observation[:32]}"))
+        def handle() -> None:
+            self.status.configure(text=f"화면 읽음: {observation[:32]}")
+            if not self.config.get("screen_proactive", True):
+                return
+            if self.chat_busy.is_set() or not self.chat_queue.empty() or self._tts_busy():
+                return
+            self.chat_queue.put(("screen", observation))
+
+        self.root.after(0, handle)
 
     def _on_screen_error(self, error: str) -> None:
         self.root.after(0, lambda: self._system(f"화면을 읽을 수 없어: {error or '알 수 없는 오류'}"))
@@ -340,9 +348,13 @@ class HanaApp:
                 continue
             try:
                 self.chat_busy.set()
-                self.watcher.wait_for_request(float(self.config.get("vision_response_timeout", 15)) + 1)
+                self.watcher.wait_for_request(float(self.config.get("vision_response_timeout", 30)) + 1)
                 if kind == "user":
                     self._answer_user(payload)
+                elif kind == "screen":
+                    if not self.chat_queue.empty():
+                        continue
+                    self._answer_screen(payload)
                 else:
                     self._answer_idle()
             except Exception as error:
@@ -377,11 +389,11 @@ class HanaApp:
             {
                 "role": "user",
                 "content": (
-                    "방송 중인 하나가 방금 화면을 직접 봤어. 채팅이나 사용자 입력을 기다리지 말고, "
-                    "화면에 실제로 보이는 장면·앱·게임 상태·읽을 수 있는 글자 중 하나를 골라 "
-                    "게임 버튜버다운 짧은 방송 멘트를 한두 문장으로 반드시 먼저 말해. "
-                    "반복되는 화면이어도 현재 장면에 대한 감상이나 다음 흐름에 대한 기대를 말하고, "
-                    "[SILENT]를 출력하지 마. 화면에 없는 내용은 만들지 마.\n\n"
+                    "너는 지금 실제 방송 중인 하나야. 방금 직접 확인한 화면 관찰 메모를 바탕으로, "
+                    "보고서나 AI 답변이 아니라 방송에서 입 밖으로 나올 자연스러운 한두 문장을 바로 말해. "
+                    "첫 문장부터 장면에 대한 사람다운 반응을 보여주고, 확인된 화면 사실 하나와 하나의 감정·판단·다음 기대를 자연스럽게 이어. "
+                    "'서버는 문제없어', '코드를 설명해', '무엇을 도와줄까' 같은 일반적인 안내문은 화면에 실제로 보이지 않는 한 절대 말하지 마. "
+                    "화면 관찰 메모에 없는 내용을 만들지 말고, 분석 과정·목록·마크다운·[SILENT]는 출력하지 마.\n\n"
                     + observation
                 ),
             }
@@ -389,6 +401,11 @@ class HanaApp:
         answer = self._stream_and_speak(messages)
         if not answer:
             return
+        created_at = now()
+        append_jsonl(self.history_file, {"role": "assistant", "content": answer, "created_at": created_at})
+        self.history.append({"role": "assistant", "content": answer, "created_at": created_at})
+        save_memory_snapshot(self.memory, self.history, self.screen_context.prompt())
+        self.last_response_at = time.monotonic()
 
     def _answer_idle(self) -> None:
         if self.last_user_activity_at > self.last_idle_requested_at:
