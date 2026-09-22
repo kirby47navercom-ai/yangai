@@ -56,7 +56,7 @@
 현재 설정은 다음 경로를 기준으로 작성되어 있습니다.
 
 ```text
-C:\Users\kirby\OneDrive\바탕 화면\v2ProPlus
+%USERPROFILE%\OneDrive\바탕 화면\v2ProPlus
 ```
 
 GPT-SoVITS 설치 위치가 다른 경우에는 `config.json`의 `gpt_sovits_*` 항목을 수정해야 합니다.
@@ -68,7 +68,7 @@ GPT-SoVITS 설치 위치가 다른 경우에는 `config.json`의 `gpt_sovits_*` 
 Ollama가 설치되어 있지 않은 경우 먼저 Windows용 Ollama를 설치해야 합니다. 현재 PC에서는 다음 실행 파일을 사용합니다.
 
 ```text
-C:\Users\kirby\AppData\Local\Programs\Ollama\ollama.exe
+%LOCALAPPDATA%\Programs\Ollama\ollama.exe
 ```
 
 하나를 실행할 때 Ollama 서버가 꺼져 있어도 하나가 자동으로 서버를 시작하지만, Ollama 프로그램 자체가 설치되어 있지 않으면 자동으로 설치할 수 없습니다.
@@ -297,7 +297,7 @@ yangai/
 다음 항목을 순서대로 확인합니다.
 
 1. Ollama가 설치되어 있는지 확인합니다.
-2. `C:\Users\kirby\AppData\Local\Programs\Ollama\ollama.exe`가 존재하는지 확인합니다.
+2. `%LOCALAPPDATA%\Programs\Ollama\ollama.exe`가 존재하는지 확인합니다.
 3. `config.json`의 `ollama_url`이 `http://127.0.0.1:11434`인지 확인합니다.
 4. `setup_hana.bat`을 실행하여 필요한 모델이 설치되어 있는지 확인합니다.
 5. 다른 프로그램이 11434 포트를 사용하고 있지 않은지 확인합니다.

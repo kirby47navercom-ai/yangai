@@ -1,13 +1,11 @@
 custom:
-  bert_base_path: "C:/Users/kirby/OneDrive/\uBC14\uD0D5 \uD654\uBA74/v2ProPlus/GPT-SoVITS/GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large"
-  cnhuhbert_base_path: "C:/Users/kirby/OneDrive/\uBC14\uD0D5 \uD654\uBA74/v2ProPlus/GPT-SoVITS/GPT_SoVITS/pretrained_models/chinese-hubert-base"
+  bert_base_path: GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large
+  cnhuhbert_base_path: GPT_SoVITS/pretrained_models/chinese-hubert-base
   device: cuda
   is_half: true
-  t2s_weights_path: "C:/Users/kirby/OneDrive/\uBC14\uD0D5 \uD654\uBA74/v2ProPlus/\u4E09\
-    \u6708\u4E03/\u4E09\u6708\u4E03-e10.ckpt"
+  t2s_weights_path: ../三月七/三月七-e10.ckpt
   version: v2ProPlus
-  vits_weights_path: "C:/Users/kirby/OneDrive/\uBC14\uD0D5 \uD654\uBA74/v2ProPlus/\u4E09\
-    \u6708\u4E03/\u4E09\u6708\u4E03_e10_s1510.pth"
+  vits_weights_path: ../三月七/三月七_e10_s1510.pth
 v1:
   bert_base_path: GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large
   cnhuhbert_base_path: GPT_SoVITS/pretrained_models/chinese-hubert-base

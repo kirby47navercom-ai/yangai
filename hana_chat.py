@@ -384,8 +384,8 @@ class GPTSoVITSTTSWorker:
     def __init__(self, config: dict, data_dir: Path) -> None:
         self.config = config
         self.data_dir = data_dir
-        self.root = Path(config["gpt_sovits_root"])
-        self.python = Path(config["gpt_sovits_python"])
+        self.root = Path(os.path.expandvars(config["gpt_sovits_root"]))
+        self.python = Path(os.path.expandvars(config["gpt_sovits_python"]))
         self.config_path = ROOT / config.get("gpt_sovits_config", "gpt_sovits_hana.yaml")
         self.port = int(config.get("gpt_sovits_port", 9880))
         self.items: queue.Queue[str | None] = queue.Queue()
@@ -401,7 +401,8 @@ class GPTSoVITSTTSWorker:
         self.log_lock = threading.Lock()
         self.status_callback = None
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        for path in (self.root, self.python, self.config_path, Path(config["gpt_sovits_ref_audio"])):
+        ref_audio = Path(os.path.expandvars(config["gpt_sovits_ref_audio"]))
+        for path in (self.root, self.python, self.config_path, ref_audio):
             if not path.exists():
                 raise FileNotFoundError(f"GPT-SoVITS 파일이 없어: {path}")
         self.thread = threading.Thread(target=self._run, daemon=True)
@@ -533,7 +534,7 @@ class GPTSoVITSTTSWorker:
                             self.root.parent / "nltk_data",
                         )
                     ),
-                    "PATH": str(self.config.get("gpt_sovits_ffmpeg", ""))
+                    "PATH": os.path.expandvars(str(self.config.get("gpt_sovits_ffmpeg", "")))
                     + os.pathsep
                     + os.environ.get("PATH", ""),
                 },
@@ -562,7 +563,7 @@ class GPTSoVITSTTSWorker:
         payload = {
             "text": text,
             "text_lang": self.config.get("gpt_sovits_text_lang", "ko"),
-            "ref_audio_path": self.config["gpt_sovits_ref_audio"],
+            "ref_audio_path": os.path.expandvars(self.config["gpt_sovits_ref_audio"]),
             "prompt_lang": self.config.get("gpt_sovits_prompt_lang", "ko"),
             "prompt_text": self.config["gpt_sovits_ref_text"],
             "text_split_method": "cut5",
