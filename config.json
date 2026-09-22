@@ -47,5 +47,6 @@
   "screen_proactive": true,
   "screen_reaction_cooldown": 15,
   "idle_talk_enabled": true,
-  "talk_after_speech_seconds": 3
+  "talk_after_speech_seconds": 3,
+  "max_idle_comments_per_scene": 3
 }

@@ -161,6 +161,7 @@ def read_config() -> dict:
         "screen_reaction_cooldown": 15,
         "idle_talk_enabled": True,
         "talk_after_speech_seconds": 3,
+        "max_idle_comments_per_scene": 3,
     }
     defaults.update(config)
     return defaults
@@ -278,6 +279,62 @@ def sanitize_model_answer(text: str, control_text: str = "") -> str:
     if re.search(r"(?:이 요청을|내부 지시문|시스템 지시|출력 규칙).{0,80}(?:반복|복사|설명|출력)", text, re.I | re.S):
         return ""
     return text.strip()
+
+
+def is_repetitive_answer(text: str, recent_answers: list[str] | tuple[str, ...]) -> bool:
+    """Detect paraphrased repeats from automatic broadcast replies."""
+    normalized = _normalized_for_comparison(text)
+    if len(normalized) < 36:
+        return False
+    shingles = {normalized[index : index + 4] for index in range(len(normalized) - 3)}
+    current_topics = _topic_tokens(text)
+    for previous in recent_answers:
+        previous_normalized = _normalized_for_comparison(previous)
+        if len(previous_normalized) < 36:
+            continue
+        similarity = difflib.SequenceMatcher(None, normalized, previous_normalized).ratio()
+        previous_shingles = {
+            previous_normalized[index : index + 4]
+            for index in range(len(previous_normalized) - 3)
+        }
+        overlap = len(shingles & previous_shingles) / max(1, min(len(shingles), len(previous_shingles)))
+        shared_topics = current_topics & _topic_tokens(previous)
+        topic_overlap = len(shared_topics) / max(1, min(len(current_topics), len(_topic_tokens(previous))))
+        repeated_named_topic = any(
+            len(topic) >= 4 and topic.isascii() and topic.isalnum()
+            for topic in shared_topics
+        )
+        if (
+            similarity >= 0.72
+            or (similarity >= 0.52 and overlap >= 0.46)
+            or (len(shared_topics) >= 2 and topic_overlap >= 0.20)
+            or repeated_named_topic
+        ):
+            return True
+    return False
+
+
+def _topic_tokens(text: str) -> set[str]:
+    stop = {
+        "하나", "화면", "방송", "장면", "모습", "기분", "느낌", "생각", "마음", "상태",
+        "지금", "이전", "조금", "더", "눈", "반짝", "바라보", "보이", "보여", "같", "것",
+        "말", "느껴", "알", "있", "없", "되", "하", "하나", "정말", "아마", "다시",
+    }
+    topics = set()
+    for token in re.findall(r"[가-힣A-Za-z0-9]{2,}", text.casefold()):
+        stem = token
+        if re.fullmatch(r"[가-힣]+", stem):
+            for suffix in (
+                "으로", "에서", "에게", "부터", "까지", "처럼", "이라는", "라는", "다는",
+                "에는", "은", "는", "이", "가", "을", "를", "에", "도", "만", "의", "로",
+                "와", "과", "던", "었어", "았어", "어", "아", "야", "지", "네", "다", "요", "고", "면", "게",
+            ):
+                if stem.endswith(suffix) and len(stem) - len(suffix) >= 2:
+                    stem = stem[: -len(suffix)]
+                    break
+        if stem not in stop and token not in stop:
+            topics.add(stem)
+    return topics
 
 
 class SentenceBuffer:
@@ -685,16 +742,23 @@ class ScreenContext:
         self._text = ""
         self._history: list[str] = []
 
-    def update(self, text: str) -> None:
+    def update(self, text: str) -> bool:
         cleaned = re.sub(r"\s+", " ", text).strip()
         with self._lock:
             self._text = cleaned
             if not cleaned:
                 self._history.clear()
-                return
+                return False
+            if self._history:
+                previous = _normalized_for_comparison(self._history[-1])
+                current = _normalized_for_comparison(cleaned)
+                if previous and difflib.SequenceMatcher(None, previous, current).ratio() >= 0.82:
+                    return False
             if not self._history or self._history[-1] != cleaned:
                 self._history.append(cleaned)
                 del self._history[:-4]
+                return True
+            return False
 
     def read(self) -> str:
         with self._lock:
@@ -918,10 +982,12 @@ class ScreenWatcher:
                                         "content": (
                                             "너는 방송 멘트를 만드는 모듈이 아니라, 하나가 실제로 보고 있는 화면을 기록하는 관찰 모듈이야. "
                                             "화면에 실제로 보이는 앱 이름, 창 제목, 게임 상태, 큰 글자와 장면만 짧고 구체적으로 적어. "
-                                            "화면에 없는 서버 상태, 코드 내용, 게임 진행, 사용자의 행동은 추측하지 마. "
+                                            "화면 속 캐릭터의 감정·의도·움직임이나 하나의 감정은 추측하지 마. "
+                                            "화면에 없는 서버 상태, 코드 내용, 게임 진행, 사용자의 행동도 추측하지 마. "
                                             "읽기 어려운 글자는 억지로 해석하지 말고 확인되는 큰 요소만 말해. "
-                                            "직전 관찰과 비교해 바뀐 점이 실제로 보일 때만 덧붙여. "
-                                            "자연스러운 한국어 한두 문장만 반환하고 분석 과정, 목록, 마크다운은 쓰지 마.\n\n"
+                                            "직전 관찰과 화면이 본질적으로 같으면 직전 관찰 문장을 그대로 반환해. "
+                                            "화면이 실제로 바뀐 경우에만 바뀐 사실을 반영하고, 감정·기대·서사는 덧붙이지 마. "
+                                            "자연스러운 한국어 한 문장만 반환하고 분석 과정, 목록, 마크다운은 쓰지 마.\n\n"
                                             + continuity
                                         ),
                                     }
@@ -948,11 +1014,12 @@ class ScreenWatcher:
                         return
                     if observation:
                         self.last_error = ""
-                        self.context.update(observation)
+                        changed = self.context.update(observation)
                         normalized = re.sub(r"\s+", " ", observation).strip()
                         cooldown = float(self.config.get("screen_reaction_cooldown", 20))
                         allowed = time.monotonic() - self.last_emit_at >= cooldown
-                        if self.on_observation and allowed:
+                        pending_change = changed or normalized != self.last_observation
+                        if pending_change and self.on_observation and allowed:
                             self.last_observation = normalized
                             self.last_emit_at = time.monotonic()
                             self.on_observation(observation)
@@ -979,6 +1046,8 @@ def build_system_prompt(prompt: str, memory: dict, screen_context: str = "") -> 
         previous_lines = []
         for item in previous_conversation[-8:]:
             if not isinstance(item, dict) or not item.get("content"):
+                continue
+            if item.get("role") == "assistant" and not usable_assistant_history(str(item["content"])):
                 continue
             speaker = "사용자" if item.get("role") == "user" else "하나"
             previous_lines.append(f"{speaker}: {item['content']}")
@@ -1157,7 +1226,7 @@ memory_lock = threading.Lock()
 def save_memory_snapshot(memory: dict, history: list[dict], screen_context: str = "") -> None:
     """Persist enough live state to continue the relationship after a restart."""
     if history:
-        memory["recent_conversation"] = [
+        recent = [
             {
                 "role": item["role"],
                 "content": str(item["content"])[:1200],
@@ -1166,6 +1235,10 @@ def save_memory_snapshot(memory: dict, history: list[dict], screen_context: str 
             for item in history[-12:]
             if item.get("role") in {"user", "assistant"} and item.get("content")
         ]
+        memory["recent_conversation"] = recent
+        assistant_messages = [item for item in recent if item["role"] == "assistant"]
+        if assistant_messages:
+            memory["last_thought"] = assistant_messages[-1]["content"][:700]
     if screen_context:
         memory["last_screen_context"] = screen_context[:5000]
     memory["last_session_at"] = now()

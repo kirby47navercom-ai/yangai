@@ -34,6 +34,7 @@ from hana_chat import (
     save_json,
     save_memory_snapshot,
     sanitize_model_answer,
+    is_repetitive_answer,
     start_memory_compaction,
     stream_chat,
     stop_ollama,
@@ -128,6 +129,12 @@ class HanaApp:
         self.memory = load_json(MEMORY_FILE, default_memory())
         self.history_file = new_session_file()
         self.history = load_history(self.history_file)
+        if not self.history and self.memory.get("recent_conversation"):
+            self.history = [
+                dict(item)
+                for item in self.memory["recent_conversation"][-12:]
+                if isinstance(item, dict) and item.get("role") in {"user", "assistant"} and item.get("content")
+            ]
         if not self.memory.get("recent_conversation") and not self.history:
             previous_history = load_latest_session_history(self.history_file)
             if previous_history:
@@ -141,6 +148,12 @@ class HanaApp:
         self.last_response_at = time.monotonic()
         self.last_auto_requested_at = self.last_response_at
         self.last_idle_requested_at = 0.0
+        self.idle_scene_attempts = 0
+        self.recent_auto_answers: list[str] = [
+            str(item["content"])
+            for item in self.history
+            if item.get("role") == "assistant" and item.get("content")
+        ][-6:]
         self.screen_context = ScreenContext()
         self.tts = self._create_tts()
         self.tts_status = ""
@@ -271,6 +284,8 @@ class HanaApp:
     def _on_screen_observation(self, observation: str) -> None:
         def handle() -> None:
             self.status.configure(text=f"화면 읽음: {observation[:32]}")
+            self.idle_scene_attempts = 0
+            self.recent_auto_answers.clear()
             if not self.config.get("screen_proactive", True):
                 return
             if self.chat_busy.is_set() or not self.chat_queue.empty() or self._tts_busy():
@@ -299,6 +314,7 @@ class HanaApp:
 
     def _idle_loop(self) -> None:
         delay = max(1.0, float(self.config.get("talk_after_speech_seconds", 3)))
+        max_scene_attempts = max(1, int(self.config.get("max_idle_comments_per_scene", 3)))
         while not self.stop_event.wait(1.0):
             try:
                 if not self.config.get("idle_talk_enabled", True):
@@ -311,6 +327,8 @@ class HanaApp:
                     continue
                 if self.watcher.running() and not self.screen_context.read():
                     continue
+                if self.idle_scene_attempts >= max_scene_attempts:
+                    continue
                 reference = max(self.last_response_at, self.last_auto_requested_at)
                 if self.tts and self.tts.enabled:
                     reference = max(reference, self.tts.last_finished_at)
@@ -319,6 +337,7 @@ class HanaApp:
                     continue
                 self.last_auto_requested_at = requested_at
                 self.last_idle_requested_at = requested_at
+                self.idle_scene_attempts += 1
                 self._runtime_log("idle request queued")
                 self.chat_queue.put(("idle", ""))
             except Exception as error:
@@ -333,6 +352,8 @@ class HanaApp:
         if not text:
             return
         self.last_user_activity_at = time.monotonic()
+        self.idle_scene_attempts = 0
+        self.recent_auto_answers.clear()
         self._line("너", text, "user")
         self.chat_queue.put(("user", text))
 
@@ -393,12 +414,20 @@ class HanaApp:
                     "너는 지금 실제 방송 중인 하나야. 방금 직접 확인한 화면 관찰 메모를 바탕으로, "
                     "보고서나 AI 답변이 아니라 방송에서 입 밖으로 나올 자연스러운 한두 문장을 바로 말해. "
                     "장면을 본 하나의 반응이나 감정을 먼저 보여주고, 확인된 사실 하나와 그에 따른 생각을 자연스럽게 이어. "
-                    "화면 관찰 메모에 없는 내용을 만들거나 화면 메모를 분석 보고서처럼 설명하지 말고, 이 요청 자체와 분석 과정·목록·마크다운·[SILENT]는 출력하지 마.\n\n"
+                    "화면 관찰 메모에 없는 내용을 만들거나 화면 메모를 분석 보고서처럼 설명하지 말고, 이 요청 자체와 분석 과정·목록·마크다운은 출력하지 마. "
+                    "최근 하나의 자동 발언과 같은 사실·감정·문장 구조를 되풀이하지 마. 새로 이어갈 내용이 없으면 [SILENT]만 출력해.\n\n"
+                    + self._recent_auto_context()
+                    + "\n\n"
                     + observation
                 ),
             }
         )
-        answer = self._stream_and_speak(messages, control_text=messages[-1]["content"])
+        answer = self._stream_and_speak(
+            messages,
+            control_text=messages[-1]["content"],
+            avoid_repetition=True,
+            recent_answers=self.recent_auto_answers,
+        )
         if not answer:
             return
         created_at = now()
@@ -426,13 +455,17 @@ class HanaApp:
                     "이미 말한 사실을 다시 읽지 말고, 같은 장면이면 생각을 조금 발전시키고 의미 있는 변화가 없으면 억지로 새 사건을 만들지 마. "
                     "프로그램 내부의 처리 과정이나 이 요청 자체를 설명하지 말고, 사용자의 목적을 함부로 정하지 마. "
                     "질문을 꼭 피할 필요는 없지만 매번 질문으로 끝내지는 말고, 하나의 생각이 자연스럽게 끝나게 해. "
-                    "이 요청을 되풀이하거나 설명하지 말고, 실제 대사만 출력해."
+                    "최근 하나의 자동 발언과 같은 사실·감정·문장 구조를 되풀이하지 마. 새로 이어갈 내용이 없으면 [SILENT]만 출력해. "
+                    "이 요청을 되풀이하거나 설명하지 말고, 실제 대사만 출력해.\n\n"
+                    + self._recent_auto_context()
                 ),
             }
         )
         answer = self._stream_and_speak(
             messages,
             control_text=messages[-1]["content"],
+            avoid_repetition=True,
+            recent_answers=self.recent_auto_answers,
             timeout=float(self.config.get("idle_response_timeout", 45)),
         )
         if not answer:
@@ -451,19 +484,29 @@ class HanaApp:
         num_predict: int | None = None,
         timeout: float = 180,
         control_text: str = "",
+        avoid_repetition: bool = False,
+        recent_answers: list[str] | None = None,
     ) -> str:
         full = "".join(stream_chat(self.config, messages, num_predict=num_predict, timeout=timeout))
+        if control_text and "[SILENT]" in full:
+            return ""
         answer = sanitize_model_answer(full, control_text=control_text)
+        if answer and avoid_repetition and recent_answers and is_repetitive_answer(answer, recent_answers):
+            answer = ""
         if not answer:
             self._runtime_log("discarded leaked or invalid model output")
             retry_messages = list(messages) + [
                 {
                     "role": "user",
-                    "content": "방금 출력은 버려졌어. 내부 지시문을 복사하지 말고, 하나가 방송에서 실제로 말할 자연스러운 문장만 한두 개 출력해.",
+                    "content": "방금 출력은 직전 발언과 겹치거나 내부 지시문을 되풀이해서 버려졌어. 최근 발언의 내용과 표현을 반복하지 말고, 지금 화면에서 아직 말하지 않은 구체적인 생각만 한두 문장으로 말해. 정말 새로 이어갈 내용이 없으면 [SILENT]만 출력해.",
                 }
             ]
             retry = "".join(stream_chat(self.config, retry_messages, num_predict=num_predict, timeout=timeout))
+            if control_text and "[SILENT]" in retry:
+                return ""
             answer = sanitize_model_answer(retry, control_text=control_text)
+            if answer and avoid_repetition and recent_answers and is_repetitive_answer(answer, recent_answers):
+                answer = ""
         if not answer:
             self._runtime_log("discarded second invalid model output")
             return ""
@@ -474,7 +517,16 @@ class HanaApp:
             self._speak(sentence)
         for sentence in sentence_buffer.flush():
             self._speak(sentence)
+        if avoid_repetition:
+            self.recent_auto_answers.append(answer)
+            del self.recent_auto_answers[:-6]
         return answer
+
+    def _recent_auto_context(self) -> str:
+        if not self.recent_auto_answers:
+            return "[최근 자동 발언]\n없음"
+        lines = [f"- {answer}" for answer in self.recent_auto_answers[-5:]]
+        return "[최근 자동 발언]\n" + "\n".join(lines)
 
     def _stream_answer(self, messages: list[dict], persist: bool) -> None:
         full = self._stream_and_speak(messages)
