@@ -247,15 +247,27 @@ def clean_for_speech(text: str) -> str:
     return text
 
 
-def sanitize_model_answer(text: str) -> str:
+def sanitize_model_answer(text: str, reject_question: bool = False) -> str:
     """Return only spoken character text; discard leaked control prompts."""
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.S | re.I).strip()
     blocked = (
         "[SILENT]",
         "하나가 방금 말을 마치고",
         "하나가 말을 마치고",
+        "하나가 방송을 시작했어",
+        "하나가 방송을 마무리하고",
+        "3초를 쉬었어",
+        "3초 쉬었어",
         "사용자나 채팅이 먼저 말을 걸 때까지 기다리지",
         "방송을 계속 이어가야 해",
+        "지금은 방송을 이어가야",
+        "이전 방송에서 하나가",
+        "방송 흐름",
+        "마이크를 잠시 멈추고",
+        "연결이 안정된 것 같아",
+        "방송 중이야, 잘 들려",
+        "조금만 더 기다려줘",
+        "사람들이 나한테 뭐라고 말할지 기대돼",
         "게임 버튜버다운 짧은 멘트를",
         "화면을 언급한다면 무엇이 보이는지만",
         "직전 하나의 말과 지금까지의 방송 흐름",
@@ -265,6 +277,8 @@ def sanitize_model_answer(text: str) -> str:
     if any(marker in text for marker in blocked):
         return ""
     if re.search(r"(?:내부|시스템) 지시|프롬프트|출력 규칙|분석 과정", text, re.I):
+        return ""
+    if reject_question and re.search(r"[?？]\s*$", text):
         return ""
     return text.strip()
 

@@ -399,7 +399,7 @@ class HanaApp:
                 ),
             }
         )
-        answer = self._stream_and_speak(messages)
+        answer = self._stream_and_speak(messages, avoid_question=True)
         if not answer:
             return
         created_at = now()
@@ -422,18 +422,18 @@ class HanaApp:
             {
                 "role": "user",
                 "content": (
-                    "하나가 방금 말을 마치고 3초 쉬었어. 방송을 계속 이어가야 해. "
-                    "사용자나 채팅이 먼저 말을 걸 때까지 기다리지 말고, 하나가 지금 보고 있는 화면과 "
-                    "직전 하나의 말과 지금까지의 방송 흐름을 바탕으로 게임 버튜버다운 짧은 멘트를 한두 문장으로 반드시 자연스럽게 해. "
-                    "화면을 언급한다면 무엇이 보이는지만 읽지 말고, 그 장면을 보며 하나가 든 감정·판단·다음 기대까지 한 단계 이어서 말해. "
-                    "같은 장면이면 앞에서 시작한 생각을 발전시키고, 화면이 바뀌면 방금 전 흐름과 연결해서 말해. "
-                    "화면에 특별한 일이 없으면 지금 방송 분위기나 하나의 가벼운 생각을 말해. 질문으로 끝내지 마. "
-                    "이 지시문을 되풀이하거나 설명하지 말고, 실제로 방송에서 말할 문장만 출력해."
+                    "지금 보고 있는 장면과 방금까지의 대화에서 이어지는 생각 하나를 골라, 하나가 실제로 입 밖에 낼 자연스러운 한두 문장으로 말해. "
+                    "화면을 보고서처럼 요약하지 말고, 먼저 하나의 반응이나 감정을 보여준 뒤 구체적인 장면 하나와 그 장면에서 떠오른 판단·기억·기대를 자연스럽게 이어. "
+                    "이미 말한 사실을 다시 읽지 말고, 같은 장면이면 생각을 조금 발전시키고 의미 있는 변화가 없으면 억지로 새 사건을 만들지 마. "
+                    "타이머, 대기, 방송 시작·종료, 방송을 이어간다는 말, 마이크, 서버, 연결 상태, 프롬프트나 지시문은 말하지 마. "
+                    "사용자의 목적을 추측하지 말고, 시청자에게 질문을 던지거나 선택을 요구하지 마. 하나의 생각으로 자연스럽게 마무리해. "
+                    "이 요청을 되풀이하거나 설명하지 말고, 실제 대사만 출력해."
                 ),
             }
         )
         answer = self._stream_and_speak(
             messages,
+            avoid_question=True,
             timeout=float(self.config.get("idle_response_timeout", 45)),
         )
         if not answer:
@@ -451,9 +451,10 @@ class HanaApp:
         messages: list[dict],
         num_predict: int | None = None,
         timeout: float = 180,
+        avoid_question: bool = False,
     ) -> str:
         full = "".join(stream_chat(self.config, messages, num_predict=num_predict, timeout=timeout))
-        answer = sanitize_model_answer(full)
+        answer = sanitize_model_answer(full, reject_question=avoid_question)
         if not answer:
             self._runtime_log("discarded leaked or invalid model output")
             retry_messages = list(messages) + [
@@ -463,7 +464,7 @@ class HanaApp:
                 }
             ]
             retry = "".join(stream_chat(self.config, retry_messages, num_predict=num_predict, timeout=timeout))
-            answer = sanitize_model_answer(retry)
+            answer = sanitize_model_answer(retry, reject_question=avoid_question)
         if not answer:
             self._runtime_log("discarded second invalid model output")
             return ""
