@@ -337,6 +337,15 @@ def _topic_tokens(text: str) -> set[str]:
     return topics
 
 
+def _screen_scene_key(text: str) -> set[str]:
+    generic = {
+        "화면", "장면", "글자", "텍스트", "앱", "창", "상태", "모습", "부분", "내용",
+        "현재", "큰", "작", "눈에", "띄", "보이", "보여", "표시", "나타", "떠", "있",
+        "같", "느껴", "보이", "다시", "바뀌", "변화", "시작", "끝", "방송", "게임",
+    }
+    return {token for token in _topic_tokens(text) if token not in generic}
+
+
 class SentenceBuffer:
     def __init__(self) -> None:
         self.buffer = ""
@@ -750,6 +759,14 @@ class ScreenContext:
                 self._history.clear()
                 return False
             if self._history:
+                previous_scene = _screen_scene_key(self._history[-1])
+                current_scene = _screen_scene_key(cleaned)
+                if previous_scene and current_scene and previous_scene == current_scene:
+                    self._text = cleaned
+                    return False
+                if previous_scene and not current_scene:
+                    self._text = cleaned
+                    return False
                 previous = _normalized_for_comparison(self._history[-1])
                 current = _normalized_for_comparison(cleaned)
                 if previous and difflib.SequenceMatcher(None, previous, current).ratio() >= 0.82:
@@ -856,6 +873,7 @@ class ScreenWatcher:
         self.last_error = ""
         self.last_observation = ""
         self.last_emit_at = 0.0
+        self.pending_change = False
         self.image_lock = threading.Lock()
         self.latest_image = ""
         self.request_lock = threading.Lock()
@@ -866,6 +884,9 @@ class ScreenWatcher:
             return True
         self.stop_event.clear()
         self.last_error = ""
+        self.last_observation = ""
+        self.last_emit_at = 0.0
+        self.pending_change = False
         self.context.update("")
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
@@ -1016,12 +1037,14 @@ class ScreenWatcher:
                         self.last_error = ""
                         changed = self.context.update(observation)
                         normalized = re.sub(r"\s+", " ", observation).strip()
+                        if changed:
+                            self.pending_change = True
                         cooldown = float(self.config.get("screen_reaction_cooldown", 20))
                         allowed = time.monotonic() - self.last_emit_at >= cooldown
-                        pending_change = changed or normalized != self.last_observation
-                        if pending_change and self.on_observation and allowed:
+                        if self.pending_change and self.on_observation and allowed:
                             self.last_observation = normalized
                             self.last_emit_at = time.monotonic()
+                            self.pending_change = False
                             self.on_observation(observation)
                     self.stop_event.wait(interval)
         except Exception as error:
