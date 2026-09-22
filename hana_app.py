@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import queue
+import re
 import threading
 import time
 import tkinter as tk
@@ -414,7 +415,7 @@ class HanaApp:
                     "너는 지금 실제 방송 중인 하나야. 방금 직접 확인한 화면 관찰 메모를 바탕으로, "
                     "보고서나 AI 답변이 아니라 방송에서 입 밖으로 나올 자연스러운 한두 문장을 바로 말해. "
                     "장면을 본 하나의 반응이나 감정을 먼저 보여주고, 확인된 사실 하나와 그에 따른 생각을 자연스럽게 이어. "
-                    "화면 관찰 메모에 없는 내용을 만들거나 화면 메모를 분석 보고서처럼 설명하지 말고, 이 요청 자체와 분석 과정·목록·마크다운은 출력하지 마. "
+                    "관찰 메모에 '확실히 읽힌 글자'로 적히지 않은 텍스트는 화면에 있다고 말하지 마. 화면 관찰 메모에 없는 내용을 만들거나 화면 메모를 분석 보고서처럼 설명하지 말고, 이 요청 자체와 분석 과정·목록·마크다운은 출력하지 마. "
                     "최근 하나의 자동 발언과 같은 사실·감정·문장 구조를 되풀이하지 마. 새로 이어갈 내용이 없으면 [SILENT]만 출력해.\n\n"
                     + self._recent_auto_context()
                     + "\n\n"
@@ -488,7 +489,7 @@ class HanaApp:
         recent_answers: list[str] | None = None,
     ) -> str:
         full = "".join(stream_chat(self.config, messages, num_predict=num_predict, timeout=timeout))
-        if control_text and "[SILENT]" in full:
+        if control_text and re.search(r"(?:\[\s*SILENT\s*\]|<\s*SILENT\s*>|\bSILENT\b)", full, re.I):
             return ""
         answer = sanitize_model_answer(full, control_text=control_text)
         if answer and avoid_repetition and recent_answers and is_repetitive_answer(answer, recent_answers):
@@ -502,7 +503,7 @@ class HanaApp:
                 }
             ]
             retry = "".join(stream_chat(self.config, retry_messages, num_predict=num_predict, timeout=timeout))
-            if control_text and "[SILENT]" in retry:
+            if control_text and re.search(r"(?:\[\s*SILENT\s*\]|<\s*SILENT\s*>|\bSILENT\b)", retry, re.I):
                 return ""
             answer = sanitize_model_answer(retry, control_text=control_text)
             if answer and avoid_repetition and recent_answers and is_repetitive_answer(answer, recent_answers):
