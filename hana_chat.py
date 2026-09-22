@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import base64
+import difflib
 import io
 import os
 import queue
@@ -247,38 +248,34 @@ def clean_for_speech(text: str) -> str:
     return text
 
 
-def sanitize_model_answer(text: str, reject_question: bool = False) -> str:
-    """Return only spoken character text; discard leaked control prompts."""
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S | re.I).strip()
-    blocked = (
-        "[SILENT]",
-        "하나가 방금 말을 마치고",
-        "하나가 말을 마치고",
-        "하나가 방송을 시작했어",
-        "하나가 방송을 마무리하고",
-        "3초를 쉬었어",
-        "3초 쉬었어",
-        "사용자나 채팅이 먼저 말을 걸 때까지 기다리지",
-        "방송을 계속 이어가야 해",
-        "지금은 방송을 이어가야",
-        "이전 방송에서 하나가",
-        "방송 흐름",
-        "마이크를 잠시 멈추고",
-        "연결이 안정된 것 같아",
-        "방송 중이야, 잘 들려",
-        "조금만 더 기다려줘",
-        "사람들이 나한테 뭐라고 말할지 기대돼",
-        "게임 버튜버다운 짧은 멘트를",
-        "화면을 언급한다면 무엇이 보이는지만",
-        "직전 하나의 말과 지금까지의 방송 흐름",
-        "난 화면에 있는 내용을 직접 볼 수 없지만",
-        "네가 말해준 정보를 바탕으로 생각해",
+def _normalized_for_comparison(text: str) -> str:
+    return re.sub(r"[\W_]+", "", text, flags=re.UNICODE).lower()
+
+
+def _looks_like_prompt_echo(answer: str, control_text: str) -> bool:
+    answer_normalized = _normalized_for_comparison(answer)
+    control_normalized = _normalized_for_comparison(control_text)
+    if len(answer_normalized) < 40 or len(control_normalized) < 80:
+        return False
+    matcher = difflib.SequenceMatcher(None, answer_normalized, control_normalized)
+    longest_block = max(block.size for block in matcher.get_matching_blocks())
+    return (
+        matcher.ratio() >= 0.58
+        or (
+            longest_block / len(answer_normalized) >= 0.70
+            and longest_block / len(control_normalized) >= 0.35
+        )
     )
-    if any(marker in text for marker in blocked):
+
+
+def sanitize_model_answer(text: str, control_text: str = "") -> str:
+    """Discard control-prompt echoes without banning natural vocabulary."""
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S | re.I).strip()
+    if "[SILENT]" in text:
         return ""
-    if re.search(r"(?:내부|시스템) 지시|프롬프트|출력 규칙|분석 과정", text, re.I):
+    if control_text and _looks_like_prompt_echo(text, control_text):
         return ""
-    if reject_question and re.search(r"[?？]\s*$", text):
+    if re.search(r"(?:이 요청을|내부 지시문|시스템 지시|출력 규칙).{0,80}(?:반복|복사|설명|출력)", text, re.I | re.S):
         return ""
     return text.strip()
 

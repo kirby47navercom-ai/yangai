@@ -392,14 +392,13 @@ class HanaApp:
                 "content": (
                     "너는 지금 실제 방송 중인 하나야. 방금 직접 확인한 화면 관찰 메모를 바탕으로, "
                     "보고서나 AI 답변이 아니라 방송에서 입 밖으로 나올 자연스러운 한두 문장을 바로 말해. "
-                    "첫 문장부터 장면에 대한 사람다운 반응을 보여주고, 확인된 화면 사실 하나와 하나의 감정·판단·다음 기대를 자연스럽게 이어. "
-                    "'서버는 문제없어', '코드를 설명해', '무엇을 도와줄까' 같은 일반적인 안내문은 화면에 실제로 보이지 않는 한 절대 말하지 마. "
-                    "화면 관찰 메모에 없는 내용을 만들지 말고, 분석 과정·목록·마크다운·[SILENT]는 출력하지 마.\n\n"
+                    "장면을 본 하나의 반응이나 감정을 먼저 보여주고, 확인된 사실 하나와 그에 따른 생각을 자연스럽게 이어. "
+                    "화면 관찰 메모에 없는 내용을 만들거나 화면 메모를 분석 보고서처럼 설명하지 말고, 이 요청 자체와 분석 과정·목록·마크다운·[SILENT]는 출력하지 마.\n\n"
                     + observation
                 ),
             }
         )
-        answer = self._stream_and_speak(messages, avoid_question=True)
+        answer = self._stream_and_speak(messages, control_text=messages[-1]["content"])
         if not answer:
             return
         created_at = now()
@@ -425,15 +424,15 @@ class HanaApp:
                     "지금 보고 있는 장면과 방금까지의 대화에서 이어지는 생각 하나를 골라, 하나가 실제로 입 밖에 낼 자연스러운 한두 문장으로 말해. "
                     "화면을 보고서처럼 요약하지 말고, 먼저 하나의 반응이나 감정을 보여준 뒤 구체적인 장면 하나와 그 장면에서 떠오른 판단·기억·기대를 자연스럽게 이어. "
                     "이미 말한 사실을 다시 읽지 말고, 같은 장면이면 생각을 조금 발전시키고 의미 있는 변화가 없으면 억지로 새 사건을 만들지 마. "
-                    "타이머, 대기, 방송 시작·종료, 방송을 이어간다는 말, 마이크, 서버, 연결 상태, 프롬프트나 지시문은 말하지 마. "
-                    "사용자의 목적을 추측하지 말고, 시청자에게 질문을 던지거나 선택을 요구하지 마. 하나의 생각으로 자연스럽게 마무리해. "
+                    "프로그램 내부의 처리 과정이나 이 요청 자체를 설명하지 말고, 사용자의 목적을 함부로 정하지 마. "
+                    "질문을 꼭 피할 필요는 없지만 매번 질문으로 끝내지는 말고, 하나의 생각이 자연스럽게 끝나게 해. "
                     "이 요청을 되풀이하거나 설명하지 말고, 실제 대사만 출력해."
                 ),
             }
         )
         answer = self._stream_and_speak(
             messages,
-            avoid_question=True,
+            control_text=messages[-1]["content"],
             timeout=float(self.config.get("idle_response_timeout", 45)),
         )
         if not answer:
@@ -451,10 +450,10 @@ class HanaApp:
         messages: list[dict],
         num_predict: int | None = None,
         timeout: float = 180,
-        avoid_question: bool = False,
+        control_text: str = "",
     ) -> str:
         full = "".join(stream_chat(self.config, messages, num_predict=num_predict, timeout=timeout))
-        answer = sanitize_model_answer(full, reject_question=avoid_question)
+        answer = sanitize_model_answer(full, control_text=control_text)
         if not answer:
             self._runtime_log("discarded leaked or invalid model output")
             retry_messages = list(messages) + [
@@ -464,7 +463,7 @@ class HanaApp:
                 }
             ]
             retry = "".join(stream_chat(self.config, retry_messages, num_predict=num_predict, timeout=timeout))
-            answer = sanitize_model_answer(retry, reject_question=avoid_question)
+            answer = sanitize_model_answer(retry, control_text=control_text)
         if not answer:
             self._runtime_log("discarded second invalid model output")
             return ""
