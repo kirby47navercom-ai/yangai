@@ -15,6 +15,7 @@ import time
 import wave
 from pathlib import Path
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 
@@ -162,6 +163,78 @@ def read_config() -> dict:
     }
     defaults.update(config)
     return defaults
+
+
+def _find_ollama() -> Path | None:
+    candidates = []
+    command = shutil.which("ollama")
+    if command:
+        candidates.append(Path(command))
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        candidates.append(Path(local_app_data) / "Programs" / "Ollama" / "ollama.exe")
+    candidates.append(Path(os.environ.get("ProgramFiles", "C:\\Program Files")) / "Ollama" / "ollama.exe")
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def stop_ollama(process: subprocess.Popen | None) -> None:
+    if not process or process.poll() is not None:
+        return
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            check=False,
+        )
+    else:
+        process.terminate()
+
+
+def ensure_ollama(config: dict) -> subprocess.Popen | None:
+    """Return a process only when this call had to start Ollama."""
+    base_url = config["ollama_url"].rstrip("/")
+    tags_url = base_url + "/api/tags"
+    try:
+        request_json(tags_url, timeout=1)
+        return None
+    except Exception:
+        pass
+
+    parsed = urlparse(base_url)
+    if parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+        raise RuntimeError("원격 Ollama 서버에 연결할 수 없어. ollama_url을 확인해줘.")
+    executable = _find_ollama()
+    if not executable:
+        raise RuntimeError("Ollama 실행 파일을 찾지 못했어. Ollama를 설치해줘.")
+
+    host = parsed.hostname or "127.0.0.1"
+    if parsed.port:
+        host += f":{parsed.port}"
+    process = subprocess.Popen(
+        [str(executable), "serve"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        env={**os.environ, "OLLAMA_HOST": host},
+    )
+    deadline = time.monotonic() + 45
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            break
+        try:
+            request_json(tags_url, timeout=1)
+            return process
+        except Exception:
+            time.sleep(0.4)
+    stop_ollama(process)
+    raise RuntimeError("Ollama 자동 시작이 45초 안에 끝나지 않았어.")
 
 
 def clean_for_speech(text: str) -> str:

@@ -21,6 +21,7 @@ from hana_chat import (
     TTSWorker,
     append_jsonl,
     default_memory,
+    ensure_ollama,
     load_history,
     load_latest_session_history,
     load_json,
@@ -34,6 +35,7 @@ from hana_chat import (
     save_memory_snapshot,
     start_memory_compaction,
     stream_chat,
+    stop_ollama,
 )
 
 
@@ -115,6 +117,12 @@ class HanaApp:
         self.root.minsize(820, 560)
         self.root.configure(bg="#111827")
         self.config = read_config()
+        self.ollama_process = None
+        self.ollama_error = ""
+        try:
+            self.ollama_process = ensure_ollama(self.config)
+        except Exception as error:
+            self.ollama_error = f"Ollama 자동 시작 실패: {error}"
         self.prompt = PROMPT_FILE.read_text(encoding="utf-8") if PROMPT_FILE.exists() else "너는 하나야."
         self.memory = load_json(MEMORY_FILE, default_memory())
         self.history_file = new_session_file()
@@ -145,6 +153,8 @@ class HanaApp:
             lambda: self.chat_busy.is_set() or not self.chat_queue.empty(),
         )
         self._build_ui()
+        if self.ollama_error:
+            self.root.after(0, lambda message=self.ollama_error: self._system(message))
         if self.tts and hasattr(self.tts, "set_status_callback"):
             self.tts.set_status_callback(self._post_tts_status)
         if self.tts and hasattr(self.tts, "prewarm"):
@@ -592,6 +602,7 @@ class HanaApp:
         self.watcher.stop()
         if self.tts:
             self.tts.close()
+        stop_ollama(self.ollama_process)
         self.root.destroy()
 
 
