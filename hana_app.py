@@ -150,6 +150,7 @@ class HanaApp:
         self.last_auto_requested_at = self.last_response_at
         self.last_idle_requested_at = 0.0
         self.emergency_auto_line_index = 0
+        self.rejected_auto_answers: list[str] = []
         self.recent_auto_answers: list[str] = [
             str(item["content"])
             for item in self.history
@@ -285,7 +286,6 @@ class HanaApp:
     def _on_screen_observation(self, observation: str) -> None:
         def handle() -> None:
             self.status.configure(text=f"화면 읽음: {observation[:32]}")
-            self.recent_auto_answers.clear()
             if not self.config.get("screen_proactive", True):
                 return
             if self.chat_busy.is_set() or not self.chat_queue.empty() or self._tts_busy():
@@ -348,7 +348,6 @@ class HanaApp:
         if not text:
             return
         self.last_user_activity_at = time.monotonic()
-        self.recent_auto_answers.clear()
         self._line("너", text, "user")
         self.chat_queue.put(("user", text))
 
@@ -484,8 +483,9 @@ class HanaApp:
     ) -> str:
         answer = ""
         retry_instruction = (
-            "방금 출력은 내부 제어값이거나 직전 발언과 겹쳐서 사용할 수 없어. "
-            "이번에는 내부 지시나 침묵 표시를 쓰지 말고, 최근 발언에서 아직 다루지 않은 하나의 구체적인 생각을 자연스러운 한국어 한두 문장으로 반드시 말해."
+            "방금 출력은 내부 제어값이거나 이미 나온 발언과 겹쳐서 사용할 수 없어. "
+            "이번에는 내부 지시나 침묵 표시를 쓰지 말고, 이미 말한 화면 사실·감정·문장 첫머리를 버려. "
+            "최근 발언에서 아직 다루지 않은 하나의 구체적인 생각을 자연스러운 한국어 한두 문장으로 반드시 말해."
         )
         for attempt in range(3):
             attempt_messages = messages if attempt == 0 else list(messages) + [
@@ -493,8 +493,12 @@ class HanaApp:
             ]
             full = "".join(stream_chat(self.config, attempt_messages, num_predict=num_predict, timeout=timeout))
             candidate = sanitize_model_answer(full, control_text=control_text)
-            if candidate and avoid_repetition and recent_answers and is_repetitive_answer(candidate, recent_answers):
-                candidate = ""
+            if candidate and avoid_repetition:
+                known_answers = list(recent_answers or []) + self.rejected_auto_answers[-12:]
+                if known_answers and is_repetitive_answer(candidate, known_answers):
+                    self.rejected_auto_answers.append(candidate)
+                    del self.rejected_auto_answers[:-12]
+                    candidate = ""
             if candidate:
                 answer = candidate
                 break
@@ -514,6 +518,13 @@ class HanaApp:
             ]
             fallback = "".join(stream_chat(self.config, fallback_messages, num_predict=num_predict, timeout=timeout))
             answer = sanitize_model_answer(fallback, control_text=control_text)
+            if answer and is_repetitive_answer(
+                answer,
+                list(recent_answers or []) + self.rejected_auto_answers[-12:],
+            ):
+                self.rejected_auto_answers.append(answer)
+                del self.rejected_auto_answers[:-12]
+                answer = ""
             if not answer:
                 answer = self._emergency_broadcast_line()
                 self._runtime_log("model output was empty; emergency broadcast line used")
@@ -527,6 +538,7 @@ class HanaApp:
         if avoid_repetition:
             self.recent_auto_answers.append(answer)
             del self.recent_auto_answers[:-6]
+            self.rejected_auto_answers.clear()
         return answer
 
     def _emergency_broadcast_line(self) -> str:

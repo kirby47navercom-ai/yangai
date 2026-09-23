@@ -283,13 +283,13 @@ def sanitize_model_answer(text: str, control_text: str = "") -> str:
 def is_repetitive_answer(text: str, recent_answers: list[str] | tuple[str, ...]) -> bool:
     """Detect paraphrased repeats from automatic broadcast replies."""
     normalized = _normalized_for_comparison(text)
-    if len(normalized) < 36:
+    if len(normalized) < 24:
         return False
     shingles = {normalized[index : index + 4] for index in range(len(normalized) - 3)}
     current_topics = _topic_tokens(text)
     for previous in recent_answers:
         previous_normalized = _normalized_for_comparison(previous)
-        if len(previous_normalized) < 36:
+        if len(previous_normalized) < 24:
             continue
         similarity = difflib.SequenceMatcher(None, normalized, previous_normalized).ratio()
         previous_shingles = {
@@ -307,6 +307,7 @@ def is_repetitive_answer(text: str, recent_answers: list[str] | tuple[str, ...])
             similarity >= 0.72
             or (similarity >= 0.52 and overlap >= 0.46)
             or (len(shared_topics) >= 2 and topic_overlap >= 0.20)
+            or (len(shared_topics) >= 3 and topic_overlap >= 0.25)
             or repeated_named_topic
         ):
             return True
