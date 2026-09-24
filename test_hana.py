@@ -46,17 +46,18 @@ class ConversationTests(unittest.TestCase):
         self.assertFalse(app._is_screen_question("나 공부하기 싫어"))
         self.assertTrue(app._is_screen_question("지금 화면에 뭐가 보여?"))
 
-    def test_auto_turns_can_choose_a_fresh_topic_without_scripted_lines(self):
+    def test_auto_turns_do_not_force_a_topic_change_by_count(self):
         history = [{"role": "user", "content": "안녕"}] + [
             {"role": "assistant", "content": "기존 대사", "source": "idle"}] * 2
-        self.assertIn("다른 구체적인 소재", h.broadcast_instruction("idle", history))
+        control = h.broadcast_instruction("idle", history)
+        self.assertIn("이미 알려준 사용자 취향", control)
         history.append({"role": "user", "content": "그 이야기 계속하자"})
-        self.assertNotIn("다른 구체적인 소재", h.broadcast_instruction("idle", history))
+        self.assertEqual(control, h.broadcast_instruction("idle", history))
 
     def test_app_commits_only_new_generated_speech_to_ui_voice_and_memory(self):
         import hana_app as app_module
         app = app_module.HanaApp.__new__(app_module.HanaApp)
-        app.config = {"model": "fake"}
+        app.config = {"model": "fake", "semantic_repeat_check": False}
         app.stop_event = threading.Event()
         app.recent_auto_answers = []
         app.memory = {}
@@ -136,7 +137,7 @@ class ConversationTests(unittest.TestCase):
                              on_state=lambda state: h.apply_reply_state(memory, state))
         self.assertEqual(memory["user_quotes"], ["나를 모래라고 불러"])
         with patch.object(h, "stream_chat", return_value=[fake]):
-            h.generate_reply({}, [{"role": "user", "content": "나를 모래라고 불러"}], control_text="진행 이벤트",
+            h.generate_reply({"semantic_repeat_check": False}, [{"role": "user", "content": "나를 모래라고 불러"}], control_text="진행 이벤트",
                              on_state=lambda state: h.apply_reply_state(memory, state))
         self.assertEqual(memory["user_quotes"], ["나를 모래라고 불러"])
 
@@ -144,9 +145,89 @@ class ConversationTests(unittest.TestCase):
         repeats = "나는 정석보다 이상한 전략이 짜릿해서 좋더라."
         novel = "그럼 무기를 못 쓰는 조건으로 한 판 해본다고 치자. 함정으로 몬스터를 유인해보고 싶어."
         with patch.object(h, "stream_chat", side_effect=[[reply(repeats)], [reply(novel)]]):
-            with patch.object(h, "repeats_meaning", side_effect=[True, False]):
-                answer = h.generate_reply({}, [], ["실험하는 게임이 좋아.", "엉뚱한 전략도 재밌어."])
+            with patch.object(h, "review_reply", side_effect=[{"issue": "repeated"}, {"issue": "none"}]):
+                with patch.object(h, "plan_continuation", return_value={"anchor": "게임", "new_point": "함정만 사용"}):
+                    answer = h.generate_reply({}, [], ["실험하는 게임이 좋아.", "엉뚱한 전략도 재밌어."], control_text="진행")
         self.assertEqual(answer, novel)
+
+    def test_review_has_user_facts_but_not_control_events_or_persona_instructions(self):
+        config = {"model": "fake", "ollama_url": "http://localhost:11434", "keep_alive": "1m", "num_ctx": 8192}
+        messages = h.make_messages("CHARACTER_INSTRUCTIONS", {"user_quotes": ["승리가 좋아"]},
+                                   [{"role": "user", "content": "나는 지는 게 싫어"},
+                                    {"role": "assistant", "content": "우리 타협해보자", "source": "idle", "generation_version": 2}], 16)
+        messages.append({"role": "user", "content": "CONTROL_EVENT", "_event": True})
+        response = {"message": {"content": json.dumps({"new_information": "", **dict.fromkeys(h.REVIEW_CHECKS, False),
+                                                         "candidate_asks_known_question": True})}}
+        with patch.object(h, "request_json", return_value=response) as request:
+            result = h.review_reply(config, messages, "이기는 게 좋아?", True, 30)
+        evidence = json.loads(request.call_args.args[1]["messages"][-1]["content"])
+        self.assertEqual(evidence["memory"]["user_quotes"], ["승리가 좋아"])
+        self.assertIn({"role": "user", "content": "나는 지는 게 싫어"}, evidence["dialogue"])
+        self.assertNotIn("CONTROL_EVENT", json.dumps(evidence))
+        self.assertNotIn("CHARACTER_INSTRUCTIONS", json.dumps(evidence))
+        self.assertEqual(result["issue"], "already_answered")
+
+    def test_local_decision_reads_memory_emotion_and_latest_user_not_control_events(self):
+        config = {"model": "fake", "ollama_url": "http://127.0.0.1:11434", "keep_alive": "1m", "num_ctx": 8192}
+        memory = {"user_quotes": ["지는 건 싫어"], "broadcast_state": {"emotion": "신남", "stance": "연습판에서만 실험"}}
+        messages = h.make_messages("PERSONA", memory, [{"role": "user", "content": "오늘은 공부 얘기하자"}], 16)
+        messages.append({"role": "user", "content": "INTERNAL_EVENT", "_event": True})
+        plan = {"user_constraint": "공부 이야기 요청", "action": "respond", "anchor": "공부 이야기", "new_point": "지금 배우는 개념 확인"}
+        with patch.object(h, "request_json", return_value={"message": {"content": json.dumps(plan)}}) as request:
+            result = h.plan_continuation(config, messages, 30, automatic=False)
+        evidence = json.loads(request.call_args.args[1]["messages"][-1]["content"])
+        self.assertFalse(evidence["automatic"])
+        self.assertEqual(evidence["previous_state"], memory["broadcast_state"])
+        self.assertEqual(evidence["memory"]["user_quotes"], memory["user_quotes"])
+        self.assertNotIn("INTERNAL_EVENT", json.dumps(evidence))
+        self.assertEqual(result["action"], "respond")
+        self.assertEqual(request.call_args.args[0], "http://127.0.0.1:11434/api/chat")
+
+    def test_invalid_local_decision_is_not_spoken(self):
+        config = {"model": "fake", "ollama_url": "http://127.0.0.1:11434", "keep_alive": "1m", "num_ctx": 8192,
+                  "local_decision_enabled": True}
+        plan = {"user_constraint": "", "action": "screen", "anchor": "없는 화면", "new_point": "없는 사건"}
+        with patch.object(h, "request_json", return_value={"message": {"content": json.dumps(plan)}}):
+            with patch.object(h, "stream_chat") as stream, self.assertRaises(RuntimeError):
+                h.generate_reply(config, [], control_text="자동 이벤트")
+        stream.assert_not_called()
+
+    def test_independent_review_checks_require_actual_booleans(self):
+        config = {"model": "fake", "ollama_url": "http://127.0.0.1:11434", "keep_alive": "1m", "num_ctx": 8192}
+        payload = {"new_information": "", **dict.fromkeys(h.REVIEW_CHECKS, False), "candidate_only_rephrases": "false"}
+        with patch.object(h, "request_json", return_value={"message": {"content": json.dumps(payload)}}):
+            with self.assertRaises(RuntimeError):
+                h.review_reply(config, [], "대사", True, 30)
+
+    def test_decision_guides_speech_without_becoming_speech(self):
+        config = {"local_decision_enabled": True, "semantic_repeat_check": False, "num_predict": 384}
+        plan = {"action": "respond", "anchor": "호칭 확인", "new_point": "모래라고 부르기"}
+        with patch.object(h, "plan_continuation", return_value=plan) as decide:
+            with patch.object(h, "stream_chat", return_value=[reply("응, 모래.")]) as stream:
+                result = h.generate_reply(config, [{"role": "user", "content": "나를 모래라고 불러"}])
+        self.assertEqual(result, "응, 모래.")
+        self.assertFalse(decide.call_args.kwargs["automatic"])
+        self.assertIn("respond", stream.call_args.args[1][-1]["content"])
+        self.assertEqual(stream.call_args.kwargs["num_predict"], 640)
+
+    def test_answered_question_repaired_before_it_reaches_user(self):
+        messages = [{"role": "system", "content": "하나"}, {"role": "user", "content": "나는 지는 게 싫어"},
+                    {"role": "user", "content": "진행", "_event": True}]
+        state, attempts = {}, []
+        with patch.object(h, "plan_continuation", return_value={"anchor": "승부 선호", "new_point": "연습판에서만 실험"}):
+            with patch.object(h, "stream_chat", side_effect=[[reply("이기는 게 좋아?")], [reply("연습판에서만 실험할게.")]]) as stream:
+                with patch.object(h, "review_reply", side_effect=[{"issue": "already_answered"}, {"issue": "none"}]):
+                    text = h.generate_reply({}, messages, control_text="진행", on_state=state.update, on_attempt=attempts.append)
+        self.assertEqual(text, "연습판에서만 실험할게.")
+        self.assertEqual([item["reason"] for item in attempts], ["already_answered", "accepted"])
+        self.assertIn("이미 말한 정보를 다시 물었다", stream.call_args.args[1][-1]["content"])
+
+    def test_user_requested_recall_is_not_blocked_as_repetition(self):
+        messages = [{"role": "system", "content": "하나"}, {"role": "assistant", "content": "모래라고 부를게"},
+                    {"role": "user", "content": "내 이름 뭐였지?"}]
+        with patch.object(h, "stream_chat", return_value=[reply("모래지.")]):
+            with patch.object(h, "review_reply", return_value={"issue": "repeated"}):
+                self.assertEqual(h.generate_reply({}, messages), "모래지.")
 
     def test_legacy_automatic_loops_are_not_replayed_as_memory(self):
         legacy = [{"role": "assistant", "content": "대전이라는 글자가 보여. 마음이 떨려."}] * 8
@@ -177,7 +258,7 @@ def live_probe(model: str, output: Path):
     config = h.read_config()
     config["model"] = model
     prompt = h.PROMPT_FILE.read_text(encoding="utf-8")
-    memory = h.load_json(h.ROOT / "dist/Hana/data/memory.json", {})
+    memory = h.default_memory()
     history = h.select_history(memory.get("recent_conversation", []))
     recent = []
     turns = [
@@ -209,7 +290,7 @@ def live_probe(model: str, output: Path):
         messages = h.make_messages(prompt, memory, history, config["recent_messages"], screen)
         control = "" if user else h.broadcast_instruction("idle", history)
         if control:
-            messages.append({"role": "user", "content": control})
+            messages.append({"role": "user", "content": control, "_event": True})
         attempts = []
         started = time.monotonic()
         try:

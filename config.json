@@ -26,6 +26,7 @@
   "top_k": 64,
   "keep_alive": "10m",
   "recent_messages": 16,
+  "local_decision_enabled": true,
   "semantic_repeat_check": true,
   "summary_every_user_turns": 8,
   "auto_memory": true,

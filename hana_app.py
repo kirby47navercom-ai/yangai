@@ -409,7 +409,7 @@ class HanaApp:
         messages = make_messages(self.prompt, self.memory, self.history,
                                  int(self.config["recent_messages"]), self.screen_context.prompt())
         control = broadcast_instruction(kind, self.history)
-        messages.append({"role": "user", "content": control})
+        messages.append({"role": "user", "content": control, "_event": True})
         answer = self._stream_and_speak(
             messages, control_text=control, avoid_repetition=True,
             recent_answers=self.recent_auto_answers,
