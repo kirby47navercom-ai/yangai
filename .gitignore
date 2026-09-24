@@ -12,3 +12,7 @@ compat_d_drive/
 build/
 dist/
 Hana.spec
+data/diagnostics/
+data/generation.jsonl
+data/hana_runtime.jsonl
+data/sessions/

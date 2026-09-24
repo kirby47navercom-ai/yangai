@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import queue
-import re
 import threading
 import time
 import tkinter as tk
@@ -28,16 +27,17 @@ from hana_chat import (
     load_json,
     list_visible_windows,
     make_messages,
+    select_history,
+    generate_reply,
+    apply_reply_state,
+    broadcast_instruction,
     new_session_file,
     now,
     read_config,
     request_json,
     save_json,
     save_memory_snapshot,
-    sanitize_model_answer,
-    is_repetitive_answer,
     start_memory_compaction,
-    stream_chat,
     stop_ollama,
 )
 
@@ -133,12 +133,13 @@ class HanaApp:
         if not self.history and self.memory.get("recent_conversation"):
             self.history = [
                 dict(item)
-                for item in self.memory["recent_conversation"][-12:]
+                for item in select_history(self.memory["recent_conversation"], 16)
                 if isinstance(item, dict) and item.get("role") in {"user", "assistant"} and item.get("content")
             ]
-        if not self.memory.get("recent_conversation") and not self.history:
+        if not self.history:
             previous_history = load_latest_session_history(self.history_file)
             if previous_history:
+                self.history = previous_history
                 save_memory_snapshot(self.memory, previous_history)
         self.user_turns = sum(1 for item in self.history if item["role"] == "user")
         self.stop_event = threading.Event()
@@ -149,8 +150,6 @@ class HanaApp:
         self.last_response_at = time.monotonic()
         self.last_auto_requested_at = self.last_response_at
         self.last_idle_requested_at = 0.0
-        self.emergency_auto_line_index = 0
-        self.rejected_auto_answers: list[str] = []
         self.recent_auto_answers: list[str] = [
             str(item["content"])
             for item in self.history
@@ -324,8 +323,6 @@ class HanaApp:
                     continue
                 if self._tts_busy():
                     continue
-                if self.watcher.running() and not self.screen_context.read():
-                    continue
                 reference = max(self.last_response_at, self.last_auto_requested_at)
                 if self.tts and self.tts.enabled:
                     reference = max(reference, self.tts.last_finished_at)
@@ -375,6 +372,7 @@ class HanaApp:
                     self._answer_idle()
             except Exception as error:
                 self._runtime_log(f"chat loop error: {type(error).__name__}: {error}")
+                self.last_response_at = time.monotonic()
                 self.root.after(0, lambda error=error: self._system(f"응답을 만들 수 없어: {error}"))
             finally:
                 self.chat_busy.clear()
@@ -396,203 +394,70 @@ class HanaApp:
             start_memory_compaction(self.config, self.memory, self.history)
 
     def _is_screen_question(self, text: str) -> bool:
-        markers = ("화면", "보이", "보여", "뭐가", "공부", "읽어", "맞춰", "게임")
+        markers = ("화면", "보이", "보여", "읽어", "맞춰")
         return any(marker in text for marker in markers) and self.watcher.running()
 
     def _answer_screen(self, observation: str) -> None:
-        messages = make_messages(self.prompt, self.memory, self.history, int(self.config["recent_messages"]), self.screen_context.prompt())
-        messages.append(
-            {
-                "role": "user",
-                "content": (
-                    "너는 지금 실제 방송 중인 하나야. 방금 직접 확인한 화면 관찰 메모를 바탕으로, "
-                    "보고서나 AI 답변이 아니라 방송에서 입 밖으로 나올 자연스러운 한두 문장을 바로 말해. "
-                    "장면을 본 하나의 반응이나 감정을 먼저 보여주고, 확인된 사실 하나와 그에 따른 생각을 자연스럽게 이어. "
-                    "관찰 메모에 '확실히 읽힌 글자'로 적히지 않은 텍스트는 화면에 있다고 말하지 마. 화면 관찰 메모에 없는 내용을 만들거나 화면 메모를 분석 보고서처럼 설명하지 말고, 이 요청 자체와 분석 과정·목록·마크다운은 출력하지 마. "
-                    "최근 하나의 자동 발언과 같은 사실·감정·문장 구조를 되풀이하지 마. 새로 보이는 변화가 작더라도 하나가 실제로 느낀 작은 생각을 자연스럽게 이어서 말해.\n\n"
-                    + self._recent_auto_context()
-                    + "\n\n"
-                    + observation
-                ),
-            }
-        )
-        answer = self._stream_and_speak(
-            messages,
-            control_text=messages[-1]["content"],
-            avoid_repetition=True,
-            recent_answers=self.recent_auto_answers,
-        )
-        if not answer:
-            return
-        created_at = now()
-        append_jsonl(self.history_file, {"role": "assistant", "content": answer, "created_at": created_at})
-        self.history.append({"role": "assistant", "content": answer, "created_at": created_at})
-        save_memory_snapshot(self.memory, self.history, self.screen_context.prompt())
-        self.last_response_at = time.monotonic()
+        self._answer_broadcast("screen")
 
     def _answer_idle(self) -> None:
         if self.last_user_activity_at > self.last_idle_requested_at:
             return
-        messages = make_messages(
-            self.prompt,
-            self.memory,
-            self.history,
-            int(self.config["recent_messages"]),
-            self.screen_context.prompt(),
-        )
-        messages.append(
-            {
-                "role": "user",
-                "content": (
-                    "지금 보고 있는 장면과 방금까지의 대화에서 이어지는 생각 하나를 골라, 하나가 실제로 입 밖에 낼 자연스러운 한두 문장으로 말해. "
-                    "화면을 보고서처럼 요약하지 말고, 먼저 하나의 반응이나 감정을 보여준 뒤 구체적인 장면 하나와 그 장면에서 떠오른 판단·기억·기대를 자연스럽게 이어. "
-                    "이미 말한 사실을 다시 읽지 말고, 같은 장면이면 생각을 조금 발전시키고 의미 있는 변화가 없으면 억지로 새 사건을 만들지 마. "
-                    "프로그램 내부의 처리 과정이나 이 요청 자체를 설명하지 말고, 사용자의 목적을 함부로 정하지 마. "
-                    "질문을 꼭 피할 필요는 없지만 매번 질문으로 끝내지는 말고, 하나의 생각이 자연스럽게 끝나게 해. "
-                    "최근 하나의 자동 발언과 같은 사실·감정·문장 구조를 되풀이하지 마. 화면의 변화가 작더라도 하나가 실제로 느낀 작은 생각을 자연스럽게 이어서 말해. "
-                    "이 요청을 되풀이하거나 설명하지 말고, 실제 대사만 출력해.\n\n"
-                    + self._recent_auto_context()
-                ),
-            }
-        )
+        self._answer_broadcast("idle")
+
+    def _answer_broadcast(self, kind: str) -> None:
+        messages = make_messages(self.prompt, self.memory, self.history,
+                                 int(self.config["recent_messages"]), self.screen_context.prompt())
+        control = broadcast_instruction(kind, self.history)
+        messages.append({"role": "user", "content": control})
         answer = self._stream_and_speak(
-            messages,
-            control_text=messages[-1]["content"],
-            avoid_repetition=True,
+            messages, control_text=control, avoid_repetition=True,
             recent_answers=self.recent_auto_answers,
             timeout=float(self.config.get("idle_response_timeout", 45)),
         )
+        self._remember_answer(answer, kind)
+
+    def _remember_answer(self, answer: str, source: str) -> None:
         if not answer:
-            self._runtime_log("idle response was empty")
             return
-        self._runtime_log(f"idle response received: {len(answer)} chars")
-        created_at = now()
-        append_jsonl(self.history_file, {"role": "assistant", "content": answer, "created_at": created_at})
-        self.history.append({"role": "assistant", "content": answer, "created_at": created_at})
+        item = {"role": "assistant", "content": answer, "created_at": now(),
+                "source": source, "generation_version": 2}
+        append_jsonl(self.history_file, item)
+        self.history.append(item)
         save_memory_snapshot(self.memory, self.history, self.screen_context.prompt())
         self.last_response_at = time.monotonic()
 
     def _stream_and_speak(
-        self,
-        messages: list[dict],
-        num_predict: int | None = None,
-        timeout: float = 180,
-        control_text: str = "",
-        avoid_repetition: bool = False,
+        self, messages: list[dict], num_predict: int | None = None,
+        timeout: float = 180, control_text: str = "", avoid_repetition: bool = False,
         recent_answers: list[str] | None = None,
     ) -> str:
-        answer = ""
-        retry_instruction = (
-            "방금 출력은 내부 제어값이거나 이미 나온 발언과 겹쳐서 사용할 수 없어. "
-            "이번에는 내부 지시나 침묵 표시를 쓰지 말고, 이미 말한 화면 사실·감정·문장 첫머리를 버려. "
-            "최근 발언에서 아직 다루지 않은 하나의 구체적인 생각을 자연스러운 한국어 한두 문장으로 반드시 말해."
+        state = {}
+        started_at = time.monotonic()
+        def record_attempt(event: dict) -> None:
+            append_jsonl(DATA_DIR / "generation.jsonl", {**event, "created_at": now(),
+                          "model": self.config["model"], "automatic": avoid_repetition})
+        answer = generate_reply(
+            self.config, messages, (recent_answers or ()) if avoid_repetition else (),
+            control_text, timeout, num_predict, record_attempt,
+            on_state=state.update,
         )
-        for attempt in range(3):
-            attempt_messages = messages if attempt == 0 else list(messages) + [
-                {"role": "user", "content": retry_instruction}
-            ]
-            full = "".join(stream_chat(self.config, attempt_messages, num_predict=num_predict, timeout=timeout))
-            candidate = sanitize_model_answer(full, control_text=control_text)
-            if candidate and avoid_repetition:
-                known_answers = list(recent_answers or []) + self.rejected_auto_answers[-12:]
-                if known_answers and is_repetitive_answer(candidate, known_answers):
-                    self.rejected_auto_answers.append(candidate)
-                    del self.rejected_auto_answers[:-12]
-                    candidate = ""
-            if candidate:
-                answer = candidate
-                break
-            self._runtime_log(f"discarded automatic output attempt {attempt + 1}")
-        if not answer:
-            if not avoid_repetition:
-                self._runtime_log("discarded invalid model output")
-                return ""
-            fallback_messages = list(messages) + [
-                {
-                    "role": "user",
-                    "content": (
-                        "이번 응답은 반드시 실제 방송 대사여야 해. 침묵 표시, 메타 설명, 화면에 없는 텍스트는 쓰지 마. "
-                        "직전 발언을 복사하지 말고, 하나의 현재 감정이나 생각을 한두 문장으로 자연스럽게 말해."
-                    ),
-                }
-            ]
-            fallback = "".join(stream_chat(self.config, fallback_messages, num_predict=num_predict, timeout=timeout))
-            answer = sanitize_model_answer(fallback, control_text=control_text)
-            if answer and is_repetitive_answer(
-                answer,
-                list(recent_answers or []) + self.rejected_auto_answers[-12:],
-            ):
-                self.rejected_auto_answers.append(answer)
-                del self.rejected_auto_answers[:-12]
-                answer = ""
-            if not answer:
-                answer = self._emergency_broadcast_line()
-                self._runtime_log("model output was empty; emergency broadcast line used")
-
-        self.root.after(0, lambda answer=answer: self._line("하나", answer, "hana"))
+        if self.stop_event.is_set() or (avoid_repetition and self.last_user_activity_at > started_at):
+            return ""
+        apply_reply_state(self.memory, state)
+        self.root.after(0, lambda: self._line("하나", answer, "hana"))
         sentence_buffer = SentenceBuffer()
-        for sentence in sentence_buffer.feed(answer):
+        for sentence in sentence_buffer.feed(answer) + sentence_buffer.flush():
             self._speak(sentence)
-        for sentence in sentence_buffer.flush():
-            self._speak(sentence)
-        if avoid_repetition:
-            self.recent_auto_answers.append(answer)
-            del self.recent_auto_answers[:-6]
-            self.rejected_auto_answers.clear()
+        self.recent_auto_answers.append(answer)
+        del self.recent_auto_answers[:-12]
         return answer
-
-    def _emergency_broadcast_line(self) -> str:
-        """Keep the broadcast audible when the model returns only control text."""
-        observation = self.screen_context.read()
-        confirmed_text = ""
-        scene = ""
-        for field in observation.split(";"):
-            key, separator, value = field.partition(":")
-            if not separator:
-                continue
-            value = value.strip()
-            if key.strip() == "확실히 읽힌 글자" and value != "없음":
-                confirmed_text = value
-            elif key.strip() == "장면" and value != "없음":
-                scene = value
-
-        if confirmed_text:
-            lines = (
-                f"음, 지금은 ‘{confirmed_text}’가 눈에 들어오네. 이 흐름이 어디로 이어질지 조금 더 보고 있을게.",
-                f"‘{confirmed_text}’가 보이는 걸 보니 장면의 중심은 잡혀 있네. 서두르지 말고 다음 변화를 기다려보자.",
-                f"지금 화면에서 ‘{confirmed_text}’가 눈에 띄어. 아직 결론을 내리긴 이르니까, 나는 계속 흐름을 따라갈게.",
-            )
-        elif scene:
-            lines = (
-                f"지금은 {scene} 쪽 흐름이 이어지고 있네. 큰 변화가 생기는지 조금 더 지켜볼게.",
-                f"이 장면은 아직 급하게 판단할 때는 아닌 것 같아. {scene}의 흐름을 놓치지 않고 보고 있을게.",
-                f"{scene} 분위기가 남아 있네. 잠깐 조용히 따라가면서 다음 장면을 기다려볼게.",
-            )
-        else:
-            lines = (
-                "음, 아직 장면이 크게 움직이진 않았네. 그래도 흐름은 놓치지 않고 보고 있어.",
-                "지금은 조용한 구간이야. 서두르지 않고 화면의 다음 변화를 기다려볼게.",
-                "잠깐 숨을 고르는 장면 같네. 작은 변화라도 생기면 그때 이어서 말할게.",
-            )
-
-        line = lines[self.emergency_auto_line_index % len(lines)]
-        self.emergency_auto_line_index += 1
-        return line
-
-    def _recent_auto_context(self) -> str:
-        if not self.recent_auto_answers:
-            return "[최근 자동 발언]\n없음"
-        lines = [f"- {answer}" for answer in self.recent_auto_answers[-5:]]
-        return "[최근 자동 발언]\n" + "\n".join(lines)
 
     def _stream_answer(self, messages: list[dict], persist: bool) -> None:
         full = self._stream_and_speak(messages)
         self.last_response_at = time.monotonic()
         if persist and full.strip():
-            answer = full.strip()
-            append_jsonl(self.history_file, {"role": "assistant", "content": answer, "created_at": now()})
-            self.history.append({"role": "assistant", "content": answer, "created_at": now()})
-            save_memory_snapshot(self.memory, self.history, self.screen_context.prompt())
+            self._remember_answer(full.strip(), "user")
 
     def _speak(self, text: str) -> None:
         if self.tts:

@@ -6,6 +6,13 @@ $BuildDist = Join-Path $Root '.hana_build_dist'
 $Data = Join-Path $Dist 'data'
 $DataBackup = Join-Path $Root '.hana_data_backup'
 
+foreach ($BuildTarget in @($Dist, $BuildDist, $Data, $DataBackup)) {
+    $ResolvedBuildTarget = [IO.Path]::GetFullPath($BuildTarget)
+    if (-not $ResolvedBuildTarget.StartsWith([IO.Path]::GetFullPath($Root) + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        throw '빌드 대상이 프로젝트 폴더 밖을 가리킵니다.'
+    }
+}
+
 if (-not (Test-Path -LiteralPath $VenvPython)) {
     throw '먼저 setup_hana.bat을 실행해줘.'
 }
@@ -29,6 +36,10 @@ try {
         --hidden-import sounddevice `
         --hidden-import winsound `
         (Join-Path $Root 'hana_app.py')
+
+    if ($LASTEXITCODE -ne 0) {
+        throw 'EXE 빌드에 실패했습니다. 기존 실행 파일을 유지합니다.'
+    }
 
     $BuiltDist = Join-Path $BuildDist 'Hana'
     Copy-Item (Join-Path $Root 'config.json') $BuiltDist -Force
