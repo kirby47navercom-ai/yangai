@@ -43,6 +43,7 @@
   "stt_compute_type": "int8",
   "listen_seconds": 6,
   "mic_enabled": true,
+  "mic_listen_during_tts": true,
   "mic_threshold": 0.015,
   "mic_chunk_seconds": 0.5,
   "mic_silence_seconds": 1.0,

@@ -30,6 +30,9 @@ class ConversationTests(unittest.TestCase):
                 with patch.multiple(a, DATA_DIR=data, MEMORY_FILE=data / "memory.json"):
                     with patch.object(a, "read_config", return_value=config), patch.object(a, "ensure_ollama", return_value=None):
                         app = a.HanaApp(root)
+                        app._start_services()
+                        self.assertIn("마이크:", app.sensors.cget("text"))
+                        self.assertTrue(app.screen_ready.is_set())
                         self.assertEqual(app.history, [])
                         app.close()
                         app.chat_thread.join(timeout=1)
@@ -172,7 +175,7 @@ class ConversationTests(unittest.TestCase):
         memory = {"user_quotes": ["지는 건 싫어"], "broadcast_state": {"emotion": "신남", "stance": "연습판에서만 실험"}}
         messages = h.make_messages("PERSONA", memory, [{"role": "user", "content": "오늘은 공부 얘기하자"}], 16)
         messages.append({"role": "user", "content": "INTERNAL_EVENT", "_event": True})
-        plan = {"user_constraint": "공부 이야기 요청", "action": "respond", "anchor": "공부 이야기", "new_point": "지금 배우는 개념 확인"}
+        plan = {"basis": "user", "user_constraint": "공부 이야기 요청", "action": "respond", "anchor": "공부 이야기", "new_point": "지금 배우는 개념 확인"}
         with patch.object(h, "request_json", return_value={"message": {"content": json.dumps(plan)}}) as request:
             result = h.plan_continuation(config, messages, 30, automatic=False)
         evidence = json.loads(request.call_args.args[1]["messages"][-1]["content"])
@@ -186,7 +189,7 @@ class ConversationTests(unittest.TestCase):
     def test_invalid_local_decision_is_not_spoken(self):
         config = {"model": "fake", "ollama_url": "http://127.0.0.1:11434", "keep_alive": "1m", "num_ctx": 8192,
                   "local_decision_enabled": True}
-        plan = {"user_constraint": "", "action": "screen", "anchor": "없는 화면", "new_point": "없는 사건"}
+        plan = {"basis": "screen", "user_constraint": "", "action": "screen", "anchor": "없는 화면", "new_point": "없는 사건"}
         with patch.object(h, "request_json", return_value={"message": {"content": json.dumps(plan)}}):
             with patch.object(h, "stream_chat") as stream, self.assertRaises(RuntimeError):
                 h.generate_reply(config, [], control_text="자동 이벤트")

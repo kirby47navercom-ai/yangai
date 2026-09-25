@@ -4,6 +4,7 @@ import queue
 import threading
 import time
 import tkinter as tk
+from collections import deque
 from pathlib import Path
 from tkinter import scrolledtext
 
@@ -43,7 +44,7 @@ from hana_chat import (
 
 
 class MicLoop:
-    def __init__(self, recognizer: SpeechRecognizer, tts, on_text, on_error, config: dict) -> None:
+    def __init__(self, recognizer: SpeechRecognizer, tts, on_text, on_error, config: dict, on_activity=None) -> None:
         self.recognizer = recognizer
         self.tts = tts
         self.on_text = on_text
@@ -51,6 +52,12 @@ class MicLoop:
         self.threshold = float(config.get("mic_threshold", 0.015))
         self.chunk_seconds = float(config.get("mic_chunk_seconds", 0.5))
         self.silence_seconds = float(config.get("mic_silence_seconds", 1.0))
+        self.config = config
+        self.on_activity = on_activity
+        self.active = threading.Event()
+        self.status = "꺼짐"
+        self.level = 0.0
+        self.last_transcript = ""
         self.stop_event = threading.Event()
         self.thread: threading.Thread | None = None
 
@@ -65,7 +72,8 @@ class MicLoop:
         self.stop_event.set()
         if self.thread:
             self.thread.join(timeout=0.6)
-        self.thread = None
+        if self.thread and not self.thread.is_alive():
+            self.thread = None
 
     def running(self) -> bool:
         return bool(self.thread and self.thread.is_alive())
@@ -78,38 +86,75 @@ class MicLoop:
             sample_rate = 16_000
             chunk_size = int(sample_rate * self.chunk_seconds)
             silence_chunks = max(1, int(self.silence_seconds / self.chunk_seconds))
+            max_chunks = max(silence_chunks + 1, int(20 / self.chunk_seconds))
+            self.status = "STT 모델 준비 중"
             self.recognizer._load()
             frames = []
             silence_count = 0
-            speaking = False
-            while not self.stop_event.is_set():
-                if self.tts and self.tts.speaking.is_set():
-                    time.sleep(0.15)
-                    continue
-                audio = sd.rec(chunk_size, samplerate=sample_rate, channels=1, dtype="float32")
-                sd.wait()
-                samples = audio[:, 0]
-                energy = float(np.sqrt(np.mean(np.square(samples))))
-                if energy >= self.threshold:
+            preroll = deque(maxlen=2)
+            audio_queue = queue.Queue(maxsize=max_chunks * 2)
+
+            def capture(indata, _frames, _time, status):
+                if status:
+                    self.status = "마이크 버퍼 경고: " + str(status)
+                if self.stop_event.is_set():
+                    return
+                try:
+                    audio_queue.put_nowait(indata[:, 0].copy())
+                except queue.Full:
+                    self.status = "STT 처리 지연: 일부 음성 누락"
+
+            # Keep the input device open while STT runs; short rec()/wait() calls lose audio between blocks.
+            with sd.InputStream(samplerate=sample_rate, channels=1, dtype="float32", blocksize=chunk_size,
+                                device=self.config.get("mic_device"), callback=capture):
+                self.status = "듣는 중"
+                while not self.stop_event.is_set():
+                    try:
+                        samples = audio_queue.get(timeout=0.2)
+                    except queue.Empty:
+                        continue
+                    self.level = float(np.sqrt(np.mean(np.square(samples))))
+                    if (not self.config.get("mic_listen_during_tts", True) and self.tts
+                            and self.tts.speaking.is_set()):
+                        frames.clear()
+                        preroll.clear()
+                        self.active.clear()
+                        self.status = "스피커 모드: 하나 음성 중 인식 대기"
+                        continue
+                    if self.status.startswith("스피커 모드:"):
+                        self.status = "듣는 중"
+                    voiced = self.level >= self.threshold
+                    if not frames:
+                        if not voiced:
+                            preroll.append(samples)
+                            continue
+                        frames.extend(preroll)
+                        preroll.clear()
+                        self.active.set()
+                        self.status = "발화 감지"
+                        if self.on_activity:
+                            self.on_activity()
                     frames.append(samples)
-                    speaking = True
+                    silence_count = 0 if voiced else silence_count + 1
+                    if silence_count < silence_chunks and len(frames) < max_chunks:
+                        continue
+                    clip = np.concatenate(frames)
+                    frames = []
                     silence_count = 0
-                    continue
-                if not speaking:
-                    continue
-                frames.append(samples)
-                silence_count += 1
-                if silence_count < silence_chunks:
-                    continue
-                clip = np.concatenate(frames)
-                frames = []
-                silence_count = 0
-                speaking = False
-                text = self.recognizer.transcribe_audio(clip)
-                if text and not self.stop_event.is_set():
-                    self.on_text(text)
+                    self.status = "STT 변환 중"
+                    text = self.recognizer.transcribe_audio(clip)
+                    if text and not self.stop_event.is_set():
+                        self.last_transcript = text
+                        self.on_text(text)
+                    self.active.clear()
+                    self.status = "듣는 중" if text else "듣는 중 (직전 발화 인식 없음)"
         except Exception as error:
+            self.status = "오류: " + str(error)
             self.on_error(str(error))
+        finally:
+            self.active.clear()
+            if self.stop_event.is_set():
+                self.status = "꺼짐"
 
 
 class HanaApp:
@@ -150,6 +195,9 @@ class HanaApp:
         self.last_response_at = time.monotonic()
         self.last_auto_requested_at = self.last_response_at
         self.last_idle_requested_at = 0.0
+        self.pending_screen = False
+        self.screen_event_id = 0
+        self.screen_ready = threading.Event()
         self.recent_auto_answers: list[str] = [
             str(item["content"])
             for item in self.history
@@ -159,13 +207,14 @@ class HanaApp:
         self.tts = self._create_tts()
         self.tts_status = ""
         self.recognizer = SpeechRecognizer(self.config)
-        self.mic = MicLoop(self.recognizer, self.tts, self._on_mic_text, self._on_mic_error, self.config)
+        self.mic = MicLoop(self.recognizer, self.tts, self._on_mic_text, self._on_mic_error, self.config,
+                           on_activity=self._on_mic_activity)
         self.watcher = ScreenWatcher(
             self.config,
             self.screen_context,
             self._on_screen_observation,
             self._on_screen_error,
-            lambda: self.chat_busy.is_set() or not self.chat_queue.empty(),
+            lambda: self.chat_busy.is_set() or not self.chat_queue.empty() or self.mic.active.is_set(),
         )
         self._build_ui()
         if self.ollama_error:
@@ -213,6 +262,9 @@ class HanaApp:
         tk.Label(header, text="하나", fg="#f8fafc", bg="#111827", font=("맑은 고딕", 20, "bold")).pack(side="left")
         self.status = tk.Label(header, text="준비 중...", fg="#93c5fd", bg="#111827", font=("맑은 고딕", 10))
         self.status.pack(side="left", padx=14)
+        self.sensors = tk.Label(main, text="입력 장치 준비 중", anchor="w", justify="left", wraplength=690,
+                                fg="#94a3b8", bg="#111827", font=("맑은 고딕", 9))
+        self.sensors.pack(fill="x", padx=18, pady=(0, 6))
 
         self.chat = scrolledtext.ScrolledText(
             main,
@@ -246,6 +298,9 @@ class HanaApp:
         tk.Button(buttons, text="화면 설정", command=self._configure_screen, relief="flat", padx=10).pack(side="left", padx=(0, 8))
         self.voice_button = tk.Button(buttons, command=self._toggle_voice, relief="flat", padx=10)
         self.voice_button.pack(side="left")
+        self.duplex = tk.BooleanVar(value=self.config.get("mic_listen_during_tts", True))
+        tk.Checkbutton(buttons, text="헤드폰 모드 · 말하는 중에도 듣기", variable=self.duplex,
+                       command=self._toggle_duplex, bg="#111827", fg="#e5e7eb", selectcolor="#1f2937").pack(side="left", padx=8)
 
     def _load_avatar(self) -> None:
         path = ROOT / "assets" / "hana_reference.jpg"
@@ -262,10 +317,14 @@ class HanaApp:
     def _start_services(self) -> None:
         if self.config.get("mic_enabled", True):
             self.mic.start()
-        if self.config.get("screen_enabled", True) and self._has_model(self.config.get("vision_model")):
-            self.watcher.start()
+        if self.config.get("screen_enabled", True):
+            if self._has_model(self.config.get("vision_model")):
+                self.watcher.start()
+            else:
+                self._system(f"화면 모델 {self.config.get('vision_model')}을 찾지 못했어. 화면 관찰은 시작되지 않았어.")
+        self.screen_ready.set()
         self._update_buttons()
-        self._system("하나가 방송을 시작했어. 마이크와 화면을 보고 있어.")
+        self._system("방송을 시작했어. 마이크 인식과 화면 관찰 상태는 위에 따로 표시할게.")
 
     def _has_model(self, model: str | None) -> bool:
         if not model:
@@ -277,7 +336,16 @@ class HanaApp:
             return False
 
     def _on_mic_text(self, text: str) -> None:
-        self.root.after(0, lambda: self._queue_user(text, "음성"))
+        if not self.stop_event.is_set():
+            self._runtime_log(f"stt recognized: {len(text)} chars")
+            self.root.after(0, lambda: self._queue_user(text, "음성"))
+
+    def _on_mic_activity(self) -> None:
+        if self.stop_event.is_set():
+            return
+        self.last_user_activity_at = time.monotonic()
+        if self.tts:
+            self.tts.interrupt()
 
     def _on_mic_error(self, error: str) -> None:
         self.root.after(0, lambda: self._system(f"마이크를 사용할 수 없어: {error}"))
@@ -287,13 +355,15 @@ class HanaApp:
             self.status.configure(text=f"화면 읽음: {observation[:32]}")
             if not self.config.get("screen_proactive", True):
                 return
-            if self.chat_busy.is_set() or not self.chat_queue.empty() or self._tts_busy():
-                return
-            self.chat_queue.put(("screen", observation))
+            # Retain the observation while speech is playing; the next free turn consumes it.
+            self.pending_screen = True
+            self.screen_event_id += 1
+            self._runtime_log("screen observation pending")
 
         self.root.after(0, handle)
 
     def _on_screen_error(self, error: str) -> None:
+        self._runtime_log(f"screen error: {error}")
         self.root.after(0, lambda: self._system(f"화면을 읽을 수 없어: {error or '알 수 없는 오류'}"))
 
     def _on_tts_status(self, message: str) -> None:
@@ -316,6 +386,8 @@ class HanaApp:
         while not self.stop_event.wait(1.0):
             try:
                 if not self.config.get("idle_talk_enabled", True):
+                    continue
+                if not self.screen_ready.is_set() or self.mic.active.is_set():
                     continue
                 if self.chat_busy.is_set():
                     continue
@@ -345,7 +417,10 @@ class HanaApp:
         if not text:
             return
         self.last_user_activity_at = time.monotonic()
-        self._line("너", text, "user")
+        if self.tts:
+            self.tts.interrupt()
+        self._line("너 · STT" if source == "음성" else "너", text, "user")
+        self._runtime_log(f"user queued: {source}, {len(text)} chars")
         self.chat_queue.put(("user", text))
 
     def _send_text(self) -> None:
@@ -403,11 +478,16 @@ class HanaApp:
     def _answer_idle(self) -> None:
         if self.last_user_activity_at > self.last_idle_requested_at:
             return
-        self._answer_broadcast("idle")
+        # A new capture target/first startup must get a chance to provide evidence before idle fiction.
+        if self.watcher.running() and not self.screen_context.prompt() and not self.watcher.last_error:
+            return
+        self._answer_broadcast("screen" if self.pending_screen and self.screen_context.prompt() else "idle")
 
     def _answer_broadcast(self, kind: str) -> None:
         messages = make_messages(self.prompt, self.memory, self.history,
                                  int(self.config["recent_messages"]), self.screen_context.prompt())
+        messages[0]["_screen_pending"] = kind == "screen"
+        screen_event_id = self.screen_event_id
         control = broadcast_instruction(kind, self.history)
         messages.append({"role": "user", "content": control, "_event": True})
         answer = self._stream_and_speak(
@@ -416,6 +496,8 @@ class HanaApp:
             timeout=float(self.config.get("idle_response_timeout", 45)),
         )
         self._remember_answer(answer, kind)
+        if answer and self.screen_event_id == screen_event_id:
+            self.pending_screen = False
 
     def _remember_answer(self, answer: str, source: str) -> None:
         if not answer:
@@ -436,13 +518,15 @@ class HanaApp:
         started_at = time.monotonic()
         def record_attempt(event: dict) -> None:
             append_jsonl(DATA_DIR / "generation.jsonl", {**event, "created_at": now(),
-                          "model": self.config["model"], "automatic": avoid_repetition})
+                          "model": self.config["model"], "automatic": avoid_repetition,
+                          "screen": messages[0].get("_screen", "") if messages else ""})
         answer = generate_reply(
             self.config, messages, (recent_answers or ()) if avoid_repetition else (),
             control_text, timeout, num_predict, record_attempt,
             on_state=state.update,
+            should_cancel=lambda: self.stop_event.is_set() or (avoid_repetition and self.last_user_activity_at > started_at),
         )
-        if self.stop_event.is_set() or (avoid_repetition and self.last_user_activity_at > started_at):
+        if not answer or self.stop_event.is_set() or (avoid_repetition and self.last_user_activity_at > started_at):
             return ""
         apply_reply_state(self.memory, state)
         self.root.after(0, lambda: self._line("하나", answer, "hana"))
@@ -568,6 +652,12 @@ class HanaApp:
             self.tts.enabled = not self.tts.enabled
         self._update_buttons()
 
+    def _toggle_duplex(self) -> None:
+        self.config["mic_listen_during_tts"] = self.duplex.get()
+        save_json(CONFIG_FILE, self.config)
+        self._system("헤드폰 모드: 하나가 말하는 중에도 들어. 스피커 소리가 마이크에 들어가면 이 설정을 꺼줘."
+                     if self.duplex.get() else "스피커 모드: 자기 목소리 재인식을 막기 위해 하나 음성 중에는 인식을 대기해.")
+
     def _update_buttons(self) -> None:
         self.mic_button.configure(text=f"마이크 {'켜짐' if self.mic.running() else '꺼짐'}")
         if self.watcher.running():
@@ -584,6 +674,11 @@ class HanaApp:
         if self.tts and self.tts.enabled:
             parts.append("음성")
         self.status.configure(text=self.tts_status or " · ".join(parts) or "대기 중")
+        screen = self.screen_context.prompt()
+        age = max(0, int(time.monotonic() - self.screen_context.updated_at))
+        screen_status = (f"{age}초 전: {screen[:110]}" if screen else
+                         self.watcher.last_error or ("첫 관찰 대기" if self.watcher.running() else "꺼짐"))
+        self.sensors.configure(text=f"마이크: {self.mic.status} · 입력 {self.mic.level:.3f}\n화면: {screen_status}")
         if not self.stop_event.is_set():
             self.root.after(1000, self._update_buttons)
 

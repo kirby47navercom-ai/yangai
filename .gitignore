@@ -11,6 +11,8 @@ piper_native/
 compat_d_drive/
 build/
 dist/
+.hana_data_backup/
+.hana_build_dist/
 Hana.spec
 data/diagnostics/
 data/generation.jsonl
