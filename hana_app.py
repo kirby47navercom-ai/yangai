@@ -453,16 +453,28 @@ class HanaApp:
                 self.chat_busy.clear()
 
     def _answer_user(self, text: str) -> None:
+        turn_started_at = time.monotonic()
         append_jsonl(self.history_file, {"role": "user", "content": text, "created_at": now()})
         self.history.append({"role": "user", "content": text, "created_at": now()})
         screen_context = self.screen_context.prompt()
-        if self._is_screen_question(text):
-            direct_observation = self.watcher.answer_question(text)
+        direct_observation = ""
+        screen_event_id = self.screen_event_id
+        if self._is_screen_question(text) and self.watcher.running():
+            try:
+                direct_observation = self.watcher.answer_question(text)
+            except Exception as error:
+                self.screen_context.update("")
+                direct_observation = ""
+                self._on_screen_error(str(error))
             if direct_observation:
-                self.screen_context.update(direct_observation)
                 screen_context = self.screen_context.prompt()
+            else:
+                screen_context = ""
         messages = make_messages(self.prompt, self.memory, self.history, int(self.config["recent_messages"]), screen_context)
-        self._stream_answer(messages, persist=True)
+        messages[0]["_turn_started_at"] = turn_started_at
+        answer = self._stream_answer(messages, persist=True)
+        if answer and direct_observation and self.screen_event_id == screen_event_id:
+            self.pending_screen = False
         self.user_turns += 1
         interval = int(self.config.get("summary_every_user_turns", 8))
         if self.config.get("auto_memory", True) and interval > 0 and self.user_turns % interval == 0:
@@ -496,7 +508,8 @@ class HanaApp:
             timeout=float(self.config.get("idle_response_timeout", 45)),
         )
         self._remember_answer(answer, kind)
-        if answer and self.screen_event_id == screen_event_id:
+        if (answer and self.screen_event_id == screen_event_id
+                and self.memory.get("broadcast_state", {}).get("basis") == "screen"):
             self.pending_screen = False
 
     def _remember_answer(self, answer: str, source: str) -> None:
@@ -515,7 +528,12 @@ class HanaApp:
         recent_answers: list[str] | None = None,
     ) -> str:
         state = {}
-        started_at = time.monotonic()
+        started_at = messages[0].get("_turn_started_at", time.monotonic()) if messages else time.monotonic()
+        watcher = getattr(self, "watcher", None)
+        capture_revision = getattr(watcher, "capture_revision", 0)
+        def cancelled() -> bool:
+            return (self.stop_event.is_set() or self.last_user_activity_at > started_at
+                    or (avoid_repetition and getattr(watcher, "capture_revision", 0) != capture_revision))
         def record_attempt(event: dict) -> None:
             append_jsonl(DATA_DIR / "generation.jsonl", {**event, "created_at": now(),
                           "model": self.config["model"], "automatic": avoid_repetition,
@@ -524,9 +542,9 @@ class HanaApp:
             self.config, messages, (recent_answers or ()) if avoid_repetition else (),
             control_text, timeout, num_predict, record_attempt,
             on_state=state.update,
-            should_cancel=lambda: self.stop_event.is_set() or (avoid_repetition and self.last_user_activity_at > started_at),
+            should_cancel=cancelled,
         )
-        if not answer or self.stop_event.is_set() or (avoid_repetition and self.last_user_activity_at > started_at):
+        if not answer or cancelled():
             return ""
         apply_reply_state(self.memory, state)
         self.root.after(0, lambda: self._line("하나", answer, "hana"))
@@ -537,11 +555,12 @@ class HanaApp:
         del self.recent_auto_answers[:-12]
         return answer
 
-    def _stream_answer(self, messages: list[dict], persist: bool) -> None:
+    def _stream_answer(self, messages: list[dict], persist: bool) -> str:
         full = self._stream_and_speak(messages)
         self.last_response_at = time.monotonic()
         if persist and full.strip():
             self._remember_answer(full.strip(), "user")
+        return full
 
     def _speak(self, text: str) -> None:
         if self.tts:

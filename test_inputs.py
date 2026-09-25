@@ -30,7 +30,7 @@ class InputTests(unittest.TestCase):
                 closed.append(True)
         with patch.object(h, "stream_chat", stream):
             with patch.object(h, "review_reply") as review:
-                cancel = iter([False, True])
+                cancel = iter([False, False, True])
                 answer = h.generate_reply({"semantic_repeat_check": False}, [], on_state=state.update,
                                            should_cancel=lambda: next(cancel))
         self.assertEqual(answer, "")
@@ -141,12 +141,13 @@ class InputTests(unittest.TestCase):
         messages[0]["_screen_pending"] = True
         plan = {"basis": "screen", "action": "screen", "anchor": "TCP", "new_point": "공부에 반응"}
         attempts = []
-        with patch.object(h, "plan_continuation", return_value=plan):
+        with patch.object(h, "plan_continuation", return_value=plan) as planner:
             with patch.object(h, "review_reply", side_effect=[{"issue": "fiction_loop"}, {"issue": "none"}]):
                 with patch.object(h, "stream_chat", side_effect=[[reply("왕관에 또 불꽃이 터지면 어떨까?")], [reply("아, 지금은 TCP 강의를 보고 있네.")]]):
                     answer = h.generate_reply({}, messages, ["왕관 얘기", "불꽃 얘기"], "자동", on_attempt=attempts.append)
         self.assertIn("TCP", answer)
         self.assertEqual([x["reason"] for x in attempts], ["fiction_loop", "accepted"])
+        self.assertEqual(planner.call_args.kwargs["rejected"][0]["issue"], "fiction_loop")
 
     def test_action_options_follow_input_not_a_fixed_topic_timer(self):
         config = {"model": "fake", "ollama_url": "http://127.0.0.1:11434", "keep_alive": "1m", "num_ctx": 8192}
@@ -160,9 +161,83 @@ class InputTests(unittest.TestCase):
         self.assertNotIn("screen", actions)
         self.assertIn("develop", actions)
         messages[0]["_screen_pending"] = True
-        with patch.object(h, "request_json", return_value={"message": {"content": json.dumps(plan)}}) as call:
+        screen_plan = {**plan, "action": "screen", "basis": "screen"}
+        with patch.object(h, "request_json", return_value={"message": {"content": json.dumps(screen_plan)}}) as call:
             h.plan_continuation(config, messages, 30)
-        self.assertIn("screen", call.call_args.args[1]["format"]["properties"]["action"]["enum"])
+        self.assertEqual(["screen"], call.call_args.args[1]["format"]["properties"]["action"]["enum"])
+
+    def test_explicit_screen_question_captures_again_and_preserves_capture_age(self):
+        from PIL import Image
+        context = h.ScreenContext()
+        watcher = h.ScreenWatcher({}, context)
+        watcher.latest_image = "old unrelated image"
+        captured_at = time.monotonic() - 60
+        frame = Image.new("RGB", (64, 64), "white")
+        with patch.object(watcher, "_capture_image", return_value=(frame, captured_at)) as capture:
+            with patch.object(h, "one_shot", return_value="새 캡처의 글자") as vision:
+                self.assertEqual(watcher.answer_question("지금 뭐가 보여?"), "새 캡처의 글자")
+        capture.assert_called_once()
+        self.assertNotEqual(vision.call_args.kwargs["images"], ["old unrelated image"])
+        self.assertEqual(context.updated_at, captured_at)
+        self.assertEqual(context.prompt(), "")
+
+    def test_capture_target_change_cancels_draft_before_ui_voice_and_memory(self):
+        app = a.HanaApp.__new__(a.HanaApp)
+        app.config, app.memory = {"model": "fake"}, {}
+        app.stop_event = threading.Event()
+        app.last_user_activity_at = 0
+        app.watcher = SimpleNamespace(capture_revision=0)
+        app.root = SimpleNamespace(after=lambda *args: self.fail("Obsolete draft reached UI"))
+        def generate(*args, **kwargs):
+            app.watcher.capture_revision = 1
+            self.assertTrue(kwargs["should_cancel"]())
+            return "obsolete draft"
+        with patch.object(a, "generate_reply", generate):
+            self.assertEqual(app._stream_and_speak([], avoid_repetition=True), "")
+        self.assertEqual(app.memory, {})
+
+    def test_disabling_screen_invalidates_inflight_capture_and_cached_image(self):
+        context = h.ScreenContext()
+        context.update("TCP 강의")
+        watcher = h.ScreenWatcher({}, context)
+        watcher.latest_image = "cached"
+        watcher.image_captured_at = time.monotonic()
+        watcher.stop()
+        self.assertEqual(watcher.capture_revision, 1)
+        self.assertEqual(context.prompt(), "")
+        with patch.object(watcher, "_capture_image") as capture:
+            self.assertEqual(watcher.answer_question("지금 뭐가 보여?"), "")
+        capture.assert_not_called()
+
+    def test_screen_question_does_not_enable_disabled_capture(self):
+        app = a.HanaApp.__new__(a.HanaApp)
+        app.config = {"recent_messages": 16, "auto_memory": False}
+        app.prompt, app.memory, app.history = "하나", {}, []
+        app.screen_context = h.ScreenContext()
+        app.screen_event_id, app.pending_screen, app.user_turns = 0, False, 0
+        app.watcher = SimpleNamespace(running=lambda: False,
+            answer_question=lambda _: self.fail("Disabled capture was used"))
+        app._stream_answer = lambda messages, persist: "화면 보기는 꺼져 있어."
+        with tempfile.TemporaryDirectory() as directory:
+            app.history_file = Path(directory) / "session.jsonl"
+            app._answer_user("지금 내 화면에 뭐가 보여?")
+        self.assertEqual(app.user_turns, 1)
+
+    def test_unhandled_screen_is_not_acknowledged_by_unrelated_monologue(self):
+        app = a.HanaApp.__new__(a.HanaApp)
+        app.prompt, app.memory, app.history = "하나", {"broadcast_state": {"basis": "reflection"}}, []
+        app.config = {"recent_messages": 16}
+        app.screen_context = h.ScreenContext()
+        app.screen_context.update("TCP 화면")
+        app.screen_event_id, app.pending_screen = 1, True
+        app.recent_auto_answers = []
+        app._stream_and_speak = lambda *args, **kwargs: "관찰을 쓰지 않은 혼잣말"
+        app._remember_answer = lambda *args: None
+        app._answer_broadcast("screen")
+        self.assertTrue(app.pending_screen)
+        app.memory["broadcast_state"]["basis"] = "screen"
+        app._answer_broadcast("screen")
+        self.assertFalse(app.pending_screen)
 
 
 def live():
@@ -206,6 +281,7 @@ def live():
         app.user_turns = 0
         app.recent_auto_answers = []
         app.last_user_activity_at = 0
+        app.screen_event_id, app.pending_screen = 0, False
         app._runtime_log = lambda message: None
         app._line = lambda who, text, tag: print(json.dumps({"speaker": who, "text": text}, ensure_ascii=False), flush=True)
         app._speak = lambda text: None
@@ -217,37 +293,81 @@ def live():
                 app._answer_user(text)
                 events = [json.loads(line) for line in (data / "generation.jsonl").read_text(encoding="utf-8").splitlines()]
                 assert events[-1]["plan"]["action"] == "respond"
+                assert any(word in app.history[-1]["content"] for word in ("네트워크", "공부")), "STT answer missed the spoken topic"
                 print(json.dumps({"stage": "stt_to_decision", "plan": events[-1]["plan"], "accepted": events[-1]["reason"]}, ensure_ascii=False), flush=True)
 
-        # Known, static screen fixture through the real image model, without reading private desktop content.
-        image = Image.new("RGB", (1280, 720), "white")
-        draw = ImageDraw.Draw(image)
-        font = ImageFont.truetype("C:/Windows/Fonts/malgun.ttf", 44)
-        for y, text in [(60, "네트워크 강의"), (180, "TCP 연결 수립"), (300, "SYN → SYN-ACK → ACK"), (420, "게임 화면이 아니라 공부 자료입니다.")]:
-            draw.text((65, y), text, font=font, fill="black")
-        buffer = io.BytesIO()
-        image.save(buffer, "PNG")
-        observation = h.one_shot(config, [{"role": "user", "content": "이 화면에서 실제로 읽히는 큰 글자와 앱 종류를 짧게 적어. 없는 사건은 추측하지 마."}],
-                                model=config["vision_model"], images=[base64.b64encode(buffer.getvalue()).decode()], timeout=60)
-        print(json.dumps({"stage": "real_vision", "observation": observation}, ensure_ascii=False), flush=True)
-        assert "TCP" in observation, "Vision missed large fixture text"
+        # Three controlled images through the production capture-question path. Only capture is injected.
+        watcher = h.ScreenWatcher(config, h.ScreenContext())
+        scenes = {0: ("TCP", ["네트워크 강의", "TCP 연결 수립", "SYN → SYN-ACK → ACK"]),
+                  6: ("패배", ["테스트 게임", "결과: 패배", "보스 체력 1%", "다시 도전"]),
+                  12: ("메뉴", ["테스트 게임", "메인 메뉴", "음악 감상", "설정"])}
+        def observe(lines):
+            image = Image.new("RGB", (1280, 720), "white")
+            draw = ImageDraw.Draw(image)
+            font = ImageFont.truetype("C:/Windows/Fonts/malgun.ttf", 44)
+            for index, text in enumerate(lines):
+                draw.text((65, 60 + index * 120), text, font=font, fill="black")
+            with patch.object(watcher, "_capture_image", return_value=(image, time.monotonic())):
+                return watcher.answer_question("실제로 읽히는 큰 글자와 화면 종류만 적어.")
         history = [{"role": "assistant", "content": line, "source": "idle", "generation_version": 2} for line in [
             "요괴가 보물에서 튀어나오면 어떨까?", "화면에 왕관이 생기면 재밌겠지?", "왕관 위로 불꽃이 터지면 멋지겠지?", "불꽃이 꽃으로 변하면 어떨까?"]]
         memory = {"broadcast_state": {"action": "hypothetical", "next_intent": "꽃에 또 장식을 더하기"}}
-        for index in range(4):
+        users = {4: "나는 모래야. 아까 TCP 공부했고, 이제 게임을 할 거야. 난 실험보다 이기는 게 좋아. 설명 말고 수다 떨자.",
+                 10: "졌다고 위로만 하지 마. 너라면 다시 도전할 거야, 말 거야? 네 생각이 궁금해.",
+                 16: "잠깐, 내 이름이랑 아까 공부한 것, 내가 좋아하는 게임 방식 기억해?"}
+        rows = []
+        for index in range(20):
+            started = time.monotonic()
+            if index in scenes:
+                keyword, lines = scenes[index]
+                observation = observe(lines)
+                assert keyword in observation, f"Vision missed fixture text: {keyword}: {observation}"
+                print(json.dumps({"stage": "real_vision", "scene": index, "observation": observation}, ensure_ascii=False), flush=True)
+            if index == 16:
+                with patch.object(h, "MEMORY_FILE", data / "flow-memory.json"):
+                    h.save_memory_snapshot(memory, history)
+                    memory = h.load_json(h.MEMORY_FILE, {})
+                    history = memory["recent_conversation"]
+            user = users.get(index)
+            if user:
+                history.append({"role": "user", "content": user})
             messages = h.make_messages(app.prompt, memory, history, 16, observation)
-            messages[0]["_screen_pending"] = index == 0
-            control = h.broadcast_instruction("screen" if index == 0 else "idle")
-            messages.append({"role": "user", "content": control, "_event": True})
+            messages[0]["_screen_pending"] = index in scenes
+            control = "" if user else h.broadcast_instruction("screen" if index in scenes else "idle")
+            if control:
+                messages.append({"role": "user", "content": control, "_event": True})
             events = []
-            answer = h.generate_reply(config, messages, [x["content"] for x in history[-6:]], control,
-                                      timeout=90, on_attempt=events.append, on_state=lambda state: h.apply_reply_state(memory, state))
-            print(json.dumps({"stage": "grounded_continuation", "turn": index + 1, "answer": answer,
-                              "plan": events[-1]["plan"]}, ensure_ascii=False), flush=True)
-            assert events[-1]["plan"]["basis"] in {"screen", "reflection"}, "Assistant monologue is not user evidence"
-            if index == 0:
-                assert events[-1]["plan"]["action"] == "screen" and ("네트워크" in answer or "TCP" in answer), "Fresh screen was ignored"
-            history.append({"role": "assistant", "content": answer, "source": "idle", "generation_version": 2})
+            recent = [x["content"] for x in history[-12:] if x["role"] == "assistant"] if not user else []
+            def record_attempt(event):
+                events.append(event)
+                h.save_json(h.DATA_DIR / "diagnostics/broadcast-latest-attempts.json", {
+                    "turn": index + 1, "user": user, "screen": observation, "attempts": events})
+            error = ""
+            try:
+                answer = h.generate_reply(config, messages, recent, control,
+                                          timeout=90, on_attempt=record_attempt, on_state=lambda state: h.apply_reply_state(memory, state))
+            except RuntimeError as exc:
+                # Finish later input/reload checks too; fail the suite after recording every failed turn.
+                answer, error = "", str(exc)
+            row = {"stage": "grounded_continuation", "turn": index + 1, "user": user, "screen": observation,
+                   "answer": answer, "error": error, "plan": events[-1]["plan"] if events else {}, "state": memory["broadcast_state"],
+                   "seconds": round(time.monotonic() - started, 2), "attempts": events}
+            rows.append(row)
+            h.save_json(h.DATA_DIR / "diagnostics/broadcast-flow.json", rows)
+            print(json.dumps({k: v for k, v in row.items() if k not in {"attempts", "screen"}}, ensure_ascii=False), flush=True)
+            if error:
+                continue
+            if index in scenes:
+                assert row["plan"]["basis"] == "screen" and row["plan"]["action"] == "screen", "Fresh screen was ignored"
+            if user:
+                assert row["plan"]["action"] == "respond", "Real user was ignored"
+            if index == 16:
+                assert all(word in answer for word in ("모래", "TCP")), "Reloaded memory was lost"
+                assert any(word in answer for word in ("이기", "승리")), "Reloaded game preference was lost"
+            assert answer and h.usable_assistant_history(answer), "Empty or control output"
+            history.append({"role": "assistant", "content": answer, "source": "user" if user else "idle", "generation_version": 2})
+        failures = [row["turn"] for row in rows if row["error"]]
+        assert not failures, f"Live generation failures at turns: {failures}"
 
 
 if __name__ == "__main__":
