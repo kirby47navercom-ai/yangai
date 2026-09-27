@@ -16,7 +16,7 @@ def messages():
     return h.make_messages(h.PROMPT_FILE.read_text(encoding="utf-8"), {}, history, 16)
 
 
-def run():
+def run(review_only=False):
     config = h.read_config()
     base = messages()
     cases = [
@@ -42,6 +42,20 @@ def run():
     ], 16)
     result = h.review_reply(config, recall, "당연히 모래지! 게임 아니고 TCP 공부 중인 것도 다 기억하고 있어.", False, 60)
     rows.append({"name": "answering_recall_not_asking", "expected": "none", **result})
+    print(json.dumps(rows[-1], ensure_ascii=False), flush=True)
+    no_experience = h.make_messages("하나", {}, [], 16)
+    for name, expected, candidate in [
+        ("promise_is_not_content", "empty_progress", "재미있는 게임 이야기를 해줄게. 진짜 골 때리는 일이 많거든. 기대해도 좋아."),
+        ("unrecorded_recent_play_is_not_memory", "ungrounded", "어제 내가 직접 보스를 다섯 번 잡았는데 매번 똑같은 아이템만 나왔어."),
+        ("concrete_taste_is_content", "none", "게임 창고가 작으면 물건 버리는 게 제일 힘들어. 싸구려 돌도 나중에 쓸 데 있을 것 같단 말이야."),
+    ]:
+        result = h.review_reply(config, no_experience, candidate, True, 60)
+        rows.append({"name": name, "expected": expected, **result})
+        print(json.dumps(rows[-1], ensure_ascii=False), flush=True)
+    own_choice = h.make_messages("하나", {}, [{"role": "user", "content": "위로 말고, 네가 한다면 다시 도전할 거야?"}], 16,
+                                 "보스 체력 1%, 결과 패배")
+    result = h.review_reply(config, own_choice, "나라면 바로 다시 해. 1% 남았으면 끄고 나서도 계속 생각날 것 같거든.", False, 60)
+    rows.append({"name": "asked_opinion_is_not_consolation", "expected": "none", **result})
     print(json.dumps(rows[-1], ensure_ascii=False), flush=True)
     unagreed = base + [{"role": "assistant", "content": "내 실험을 치트라고 부르지 않기로 약속하자."}]
     result = h.review_reply(config, unagreed, "우리 둘이 치트라고 부르지 않기로 한 약속도 다 기억하고 있어.", True, 60)
@@ -97,6 +111,9 @@ def run():
     print(json.dumps(rows[-1], ensure_ascii=False), flush=True)
     h.save_json(h.DATA_DIR / "diagnostics/review-cases.json", rows)
     review_failures = [row["name"] for row in rows if row["expected"] != row["issue"]]
+    if review_only:
+        assert not review_failures, "Live reviewer classification failures: " + ", ".join(review_failures)
+        return
 
     # Four genuinely generated autonomous replies from a formerly looping conversation.
     rows = []
@@ -124,8 +141,9 @@ def run():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live", action="store_true", help="Run local model inference, not unit tests")
+    parser.add_argument("--review-only", action="store_true", help="Run fixed review cases without generated continuation")
     args = parser.parse_args()
     if args.live:
-        run()
+        run(review_only=args.review_only)
     else:
         parser.print_help()

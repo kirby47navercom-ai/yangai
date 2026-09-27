@@ -20,6 +20,36 @@ from test_hana import reply
 
 
 class InputTests(unittest.TestCase):
+    def test_tts_relative_paths_work_for_source_and_exe(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory).resolve()
+            assets = project / "tts" / "v2ProPlus"
+            assets.mkdir(parents=True)
+            for name in ("python.exe", "ref.wav"):
+                (assets / name).touch()
+            for app_root, prefix in ((project, "tts/v2ProPlus"),
+                                     (project / "dist" / "Hana", "../../tts/v2ProPlus")):
+                app_root.mkdir(parents=True, exist_ok=True)
+                (app_root / "gpt_sovits_hana.yaml").touch()
+                config = {"gpt_sovits_root": prefix,
+                          "gpt_sovits_python": prefix + "/python.exe",
+                          "gpt_sovits_ref_audio": prefix + "/ref.wav",
+                          "gpt_sovits_ref_text": "참조 음성"}
+                with self.subTest(root=app_root), patch.object(h, "ROOT", app_root):
+                    worker = h.GPTSoVITSTTSWorker(config, app_root / "data")
+                    try:
+                        self.assertEqual(worker.root, assets)
+                        self.assertEqual(worker.python, assets / "python.exe")
+                        self.assertEqual(h.resolve_tts_path(assets / "ref.wav"), assets / "ref.wav")
+                        with patch.object(worker, "_ensure_server"), \
+                             patch.object(h, "urlopen", return_value=io.BytesIO(b"test")) as request, \
+                             patch.object(h, "play_wav_file"):
+                            worker._speak("경로 검사", threading.Event())
+                        payload = json.loads(request.call_args.args[0].data)
+                        self.assertEqual(payload["ref_audio_path"], str(assets / "ref.wav"))
+                    finally:
+                        worker.close()
+
     def test_user_interrupt_closes_stream_without_committing_draft(self):
         state = {}
         closed = []

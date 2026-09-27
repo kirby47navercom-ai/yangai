@@ -42,7 +42,18 @@ try {
     }
 
     $BuiltDist = Join-Path $BuildDist 'Hana'
-    Copy-Item (Join-Path $Root 'config.json') $BuiltDist -Force
+    # Source and EXE share project-local TTS assets; rebuilding must not delete them.
+    $BuiltConfig = Get-Content -Raw -Encoding UTF8 (Join-Path $Root 'config.json') | ConvertFrom-Json
+    foreach ($TtsKey in @('gpt_sovits_root', 'gpt_sovits_python', 'gpt_sovits_ffmpeg',
+                          'gpt_sovits_nltk_data', 'gpt_sovits_ref_audio')) {
+        $TtsProperty = $BuiltConfig.PSObject.Properties[$TtsKey]
+        if ($TtsProperty -and $TtsProperty.Value -and
+            -not [IO.Path]::IsPathRooted([Environment]::ExpandEnvironmentVariables($TtsProperty.Value))) {
+            $TtsProperty.Value = '../../' + $TtsProperty.Value.Replace('\', '/')
+        }
+    }
+    [IO.File]::WriteAllText((Join-Path $BuiltDist 'config.json'),
+        ($BuiltConfig | ConvertTo-Json -Depth 20), [Text.UTF8Encoding]::new($false))
     Copy-Item (Join-Path $Root 'hana_prompt.txt') $BuiltDist -Force
     Copy-Item (Join-Path $Root 'gpt_sovits_hana.yaml') $BuiltDist -Force
     Copy-Item (Join-Path $Root 'voices') (Join-Path $BuiltDist 'voices') -Recurse -Force
