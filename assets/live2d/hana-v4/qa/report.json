@@ -1,0 +1,25 @@
+{
+  "file": "hana-clean-native.png",
+  "width": 1024,
+  "height": 1536,
+  "channels": 4,
+  "alpha": {
+    "transparent": 980093,
+    "opaque": 0,
+    "nearlyOpaque": 505859,
+    "partial": 592771
+  },
+  "borderPixels": 0,
+  "contentBounds": {
+    "left": 65,
+    "top": 16,
+    "right": 1013,
+    "bottom": 1518
+  },
+  "sourceAlpha": "preserved as generated; no matting, erosion, thresholding, or recoloring applied",
+  "limitations": [
+    "Generated interiors are mostly near-opaque (250..254), not exactly 255; no alpha normalization applied.",
+    "Alpha presence does not by itself verify every gap or preserve reference details; visual review required.",
+    "Flat illustration; not layered PSD or rig-ready Live2D model."
+  ]
+}
