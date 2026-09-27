@@ -54,9 +54,9 @@ class VoiceTests(unittest.TestCase):
         for position in v.POSITIONS:
             pcm, _ = v.spatial_audio(samples, rate, {'position': position}, {}, 0.6)
             nonzero = np.flatnonzero(np.any(pcm != 0, axis=1))
-            self.assertTrue(len(nonzero))
-            self.assertGreaterEqual(nonzero.min(), rate // 2)
-            self.assertLess(nonzero.max(), rate // 2 + int(rate * 0.001))
+            np.testing.assert_array_equal(nonzero, [rate // 2])
+            for channel in pcm.T:
+                np.testing.assert_array_equal(np.flatnonzero(channel), [rate // 2])
         centered, _ = v.spatial_audio(samples, rate, {}, {})
         self.assertTrue(np.array_equal(centered[:, 0], centered[:, 1]))
         self.assertEqual(np.count_nonzero(centered[:, 0]), 1)
@@ -91,29 +91,32 @@ class VoiceTests(unittest.TestCase):
         self.assertEqual(worker.voice_pose, 0)
         self.assertIn('원래 음성', messages[0])
 
-    def test_real_pitch_shift_preserves_duration(self):
-        ffmpeg = h.configured_ffmpeg(h.read_config())
-        if not ffmpeg:
-            self.skipTest('Local FFmpeg is not installed')
+    def test_normal_tones_preserve_original_samples_without_pitch_or_delay(self):
         rate = 24000
-        signal = (np.sin(np.arange(rate * 2) * 2 * np.pi * 220 / rate) * 12000).astype('<i2')
-        peaks = []
+        signal = np.random.default_rng(0).integers(-12000, 12001, rate * 2, dtype='<i2')
+        signal[rate:rate + 1000] = 0
         with tempfile.TemporaryDirectory() as directory:
-            for tone in ('serious', 'neutral', 'bright'):
-                path = Path(directory) / (tone + '.wav')
-                with wave.open(str(path), 'wb') as wav:
-                    wav.setparams((1, 2, rate, 0, 'NONE', 'not compressed'))
-                    wav.writeframes(signal.tobytes())
-                v.render_voice_wav(path, {'tone': tone}, {}, ffmpeg=ffmpeg)
-                with wave.open(str(path), 'rb') as wav:
-                    self.assertAlmostEqual(wav.getnframes() / rate, 2, delta=0.05)
-                    pcm = np.frombuffer(wav.readframes(wav.getnframes()), dtype='<i2').reshape(-1, 2)[:, 0]
-                middle = pcm[rate // 2:rate * 3 // 2].astype(float)
-                spectrum = np.abs(np.fft.rfft(middle * np.hanning(len(middle))))
-                peaks.append(np.fft.rfftfreq(len(middle), 1 / rate)[np.argmax(spectrum)])
-        self.assertLess(peaks[0], 212)
-        self.assertAlmostEqual(peaks[1], 220, delta=1)
-        self.assertGreater(peaks[2], 230)
+            for tone, (_, level) in v.TONES.items():
+                if tone == 'whisper':  # Intentional unvoiced conversion has its own test.
+                    continue
+                for position, pan in v.POSITIONS.items():
+                    with self.subTest(tone=tone, position=position):
+                        path = Path(directory) / 'speech.wav'
+                        with wave.open(str(path), 'wb') as wav:
+                            wav.setparams((1, 2, rate, 0, 'NONE', 'not compressed'))
+                            wav.writeframes(signal.tobytes())
+                        v.render_voice_wav(path, {'tone': tone, 'position': position},
+                                           {'voice_spatial_strength': 1}, previous=pan)
+                        with wave.open(str(path), 'rb') as wav:
+                            self.assertEqual(wav.getframerate(), rate)
+                            self.assertEqual(wav.getnframes(), len(signal))
+                            pcm = np.frombuffer(wav.readframes(wav.getnframes()), dtype='<i2').reshape(-1, 2)
+                        # Ignore only the documented 5ms endpoint fades. Every other
+                        # sample must be the same source sample, scaled and quantized.
+                        gains = np.sqrt((1 + np.array([-1, 1]) * pan) / 2) * level
+                        expected = signal[:, None].astype(float) / 32768 * 32767 * gains
+                        np.testing.assert_allclose(pcm[rate // 100:-rate // 100],
+                            np.round(expected[rate // 100:-rate // 100]), atol=1)
 
     def test_answer_and_delivery_travel_together_as_one_utterance(self):
         voice = {'tone': 'soft', 'position': 'close_left'}
@@ -178,13 +181,17 @@ def load_runtime(built=False):
 def live(built=False):
     project = load_runtime(built)
     config = h.read_config()
-    output = project / 'data/diagnostics' / ('voice-close-built' if built else 'voice-close-source')
+    output = project / 'data/diagnostics' / ('voice-dry-built' if built else 'voice-dry-source')
     output.mkdir(parents=True, exist_ok=True)
     shutil.copy2(h.resolve_tts_path(config['gpt_sovits_config']), output / 'tts-test.yaml')
     config.update(gpt_sovits_config=str(output / 'tts-test.yaml'), gpt_sovits_port=19881)
     worker = h.GPTSoVITSTTSWorker(config, output)
     rows = []
     current = {}
+    render = h.render_voice_wav
+    def capture_raw(path, *args, **kwargs):
+        shutil.copy2(path, output / (current['tone'] + '-raw.wav'))
+        return render(path, *args, **kwargs)
     def inspect(path, cancel):
         with wave.open(str(path)) as wav:
             rate, frames, channels = wav.getframerate(), wav.getnframes(), wav.getnchannels()
@@ -204,12 +211,24 @@ def live(built=False):
                'rms_left': round(rms[0], 2), 'rms_right': round(rms[1], 2),
                'peak': float(np.max(np.abs(pcm))), 'max_internal_quiet_seconds': round(longest * 0.02, 2),
                'playback_tested': False}
+        if current['tone'] != 'whisper':
+            with wave.open(str(output / (current['tone'] + '-raw.wav'))) as raw:
+                assert raw.getframerate() == rate and raw.getnframes() == frames
+                original = np.frombuffer(raw.readframes(frames), dtype='<i2').reshape(-1, raw.getnchannels()).mean(axis=1)
+            # Constant-power panning may change left/right gain, never sample timing.
+            level = 0.86 + (v.TONES[current['tone']][1] - 0.86) * v.strength(config, 'voice_expression_strength')
+            body = slice(rate // 100, -rate // 100)
+            error = np.abs(np.linalg.norm(pcm[body], axis=1) - np.abs(original[body]) * level * 32767 / 32768)
+            assert error.max() <= 2, 'Postprocessing changed the original waveform'
+            assert np.all(pcm * original[:, None] >= 0), 'Postprocessing changed sample phase'
+            assert not pcm[original == 0].any(), 'Postprocessing added sound into silence'
+            row['dry_sample_error_pcm16'] = round(float(error.max()), 3)
         shutil.copy2(path, output / (current['tone'] + '.wav'))
         rows.append(row)
     try:
         assert not worker._server_ready(), 'Test port already in use'
         worker._ensure_server()
-        with patch.object(h, 'play_wav_file', inspect):
+        with patch.object(h, 'play_wav_file', inspect), patch.object(h, 'render_voice_wav', capture_raw):
             for tone, position in [('neutral', 'center'), ('bright', 'right'), ('serious', 'left'),
                                    ('soft', 'close_left'), ('angry', 'center'), ('whisper', 'close_right')]:
                 current.update(tone=tone, position=position)

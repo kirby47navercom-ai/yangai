@@ -496,17 +496,10 @@ def resolve_tts_path(value: str | Path) -> Path:
     return (ROOT / os.path.expandvars(str(value))).resolve()
 
 
-def configured_ffmpeg(config: dict) -> Path | None:
-    if not config.get("gpt_sovits_ffmpeg"):
-        return None
-    path = resolve_tts_path(config["gpt_sovits_ffmpeg"]) / "ffmpeg.exe"
-    return path if path.is_file() else None
-
-
 def apply_voice_effects(worker, path: Path, voice, cancel: threading.Event) -> None:
     try:
         worker.voice_pose = render_voice_wav(path, voice, worker.config, worker.voice_pose,
-                                            configured_ffmpeg(worker.config), cancel)
+                                            cancel=cancel)
     except Exception as error:
         # Effect failure must not silence an already synthesized, valid utterance.
         worker.voice_pose = 0.0

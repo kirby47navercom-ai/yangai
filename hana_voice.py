@@ -1,6 +1,5 @@
 """Bounded voice delivery and lightweight headphone spatialization; no voice assets."""
 import math
-import subprocess
 import tempfile
 import wave
 from pathlib import Path
@@ -8,12 +7,12 @@ from pathlib import Path
 import numpy as np
 
 
-# Semitones, synthesis speed, gain. Anger changes delivery, not listening volume.
+# Synthesis speed, gain. Keep the generated voice's pitch and phase untouched.
 TONES = {
-    "neutral": (0.0, 1.0, 0.86), "bright": (1.2, 1.06, 0.86),
-    "serious": (-1.0, 0.95, 0.84), "soft": (-0.6, 0.90, 0.62),
-    "angry": (0.3, 1.07, 0.86), "surprised": (1.6, 1.08, 0.84),
-    "afraid": (0.7, 1.03, 0.76), "whisper": (0.0, 0.92, 0.64),
+    "neutral": (1.0, 0.86), "bright": (1.06, 0.86),
+    "serious": (0.95, 0.84), "soft": (0.90, 0.62),
+    "angry": (1.07, 0.86), "surprised": (1.08, 0.84),
+    "afraid": (1.03, 0.76), "whisper": (0.92, 0.64),
 }
 # All positions stay at the close microphone. Old 'far' values normalize to center.
 POSITIONS = {
@@ -44,7 +43,7 @@ def strength(config, key, default=1.0):
 
 def voice_speed(voice, config):
     tone = normalize_voice(voice, config)["tone"]
-    return 1.0 + (TONES[tone][1] - 1.0) * strength(config, "voice_expression_strength")
+    return 1.0 + (TONES[tone][0] - 1.0) * strength(config, "voice_expression_strength")
 
 
 def whisper_audio(mono, rate, amount=0.9):
@@ -101,18 +100,14 @@ def spatial_audio(samples, rate, voice, config, previous=0.0):
     blend = blend * blend * (3 - 2 * blend)
     start = previous if amount else 0.0
     pans = start + (target - start) * blend
-    level = 0.86 + (TONES[voice["tone"]][2] - 0.86) * strength(config, "voice_expression_strength")
+    level = 0.86 + (TONES[voice["tone"]][1] - 0.86) * strength(config, "voice_expression_strength")
     if voice["tone"] == "whisper":
         mono = whisper_audio(mono, rate, strength(config, "voice_whisper_strength", 0.9))
-    # ponytail: direct ITD/ILD approximates close binaural microphones, not full HRTF.
-    # A sub-millisecond inter-ear offset is not a second copy mixed into either ear.
-    frames = np.arange(len(mono))
+    # Dry amplitude panning only: no delayed samples, pitch shift or room response.
     channels = []
     for side in (-1, 1):
-        far_ear = np.maximum(0.0, -side * pans)
-        delayed = np.interp(frames - far_ear * rate * 0.00025, frames, mono, left=0.0)
         ear_gain = np.sqrt((1 + side * pans) / 2)
-        channels.append(delayed * ear_gain * level)
+        channels.append(mono * ear_gain * level)
     stereo = np.column_stack(channels)
     fade = min(int(rate * 0.005), len(mono) // 2)
     if fade:
@@ -125,7 +120,7 @@ def spatial_audio(samples, rate, voice, config, previous=0.0):
     return np.round(stereo * 32767).astype("<i2"), target
 
 
-def render_voice_wav(path, voice, config, previous=0.0, ffmpeg=None, cancel=None):
+def render_voice_wav(path, voice, config, previous=0.0, cancel=None):
     """Modify only the temporary generated WAV. Reference recordings are never edited."""
     voice = normalize_voice(voice, config)
     if cancel is not None and cancel.is_set():
@@ -137,35 +132,6 @@ def render_voice_wav(path, voice, config, previous=0.0, ffmpeg=None, cancel=None
         if width != 2 or channels not in (1, 2):
             raise ValueError("Voice processing requires mono/stereo PCM16 WAV")
         raw = wav.readframes(wav.getnframes())
-    pitch = TONES[voice["tone"]][0] * strength(config, "voice_expression_strength")
-    if pitch and ffmpeg:
-        ratio = 2 ** (pitch / 12)
-        # Existing FFmpeg rubberband preserves duration and vocal formants.
-        process = subprocess.Popen([
-            str(ffmpeg), "-hide_banner", "-loglevel", "error", "-nostdin", "-i", str(path),
-            "-af", f"rubberband=pitch={ratio:.6f}:formant=preserved", "-ar", str(rate),
-            "-ac", "1", "-f", "s16le", "pipe:1"], stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        try:
-            # communicate drains both pipes; bounded waits allow interruption/shutdown.
-            for _ in range(100):
-                if cancel is not None and cancel.is_set():
-                    return previous
-                try:
-                    processed, error = process.communicate(timeout=0.1)
-                    break
-                except subprocess.TimeoutExpired:
-                    continue
-            else:
-                raise TimeoutError("Voice pitch processing exceeded 10 seconds")
-            if process.returncode or not processed:
-                raise RuntimeError("Voice pitch processing failed: " + error.decode(errors="replace")[:200])
-            raw, channels = processed, 1
-        finally:
-            if process.poll() is None:
-                process.kill()
-            process.communicate()
     if cancel is not None and cancel.is_set():
         return previous
     samples = np.frombuffer(raw, dtype="<i2").reshape(-1, channels).astype(np.float32) / 32768
