@@ -61,20 +61,19 @@ class VoiceTests(unittest.TestCase):
         self.assertTrue(np.array_equal(centered[:, 0], centered[:, 1]))
         self.assertEqual(np.count_nonzero(centered[:, 0]), 1)
 
-    def test_whisper_is_aperiodic_not_just_quieter_and_preserves_silence(self):
+    def test_removed_whisper_falls_back_to_normal_voice(self):
         rate = 24000
         samples = (np.sin(np.arange(rate) * 2 * np.pi * 200 / rate) * 0.4).astype(np.float32)
-        samples[:rate // 10] = samples[-rate // 10:] = 0
-        whisper = v.whisper_audio(samples, rate)
-        self.assertEqual(len(whisper), len(samples))
-        self.assertTrue(np.isfinite(whisper).all())
-        self.assertFalse(whisper[:rate // 10].any())
-        self.assertFalse(whisper[-rate // 20:].any())
-        segment = whisper[rate // 4:3 * rate // 4]
-        pitch_period = rate // 200
-        periodicity = np.corrcoef(segment[:-pitch_period], segment[pitch_period:])[0, 1]
-        self.assertLess(abs(periodicity), 0.5)
-        self.assertTrue(np.array_equal(v.whisper_audio(samples, rate, 0), samples))
+        legacy = {'tone': 'whisper', 'position': 'close_left'}
+        config = {'voice_whisper_strength': 1}
+        self.assertNotIn('whisper', h.REPLY_SCHEMA['properties']['voice']['properties']['tone']['enum'])
+        self.assertNotIn('whisper', h.REPLY_FORMAT_PROMPT)
+        self.assertFalse(hasattr(v, 'whisper_audio'))
+        self.assertEqual(v.normalize_voice(legacy, config), {'tone': 'neutral', 'position': 'close_left'})
+        self.assertEqual(v.voice_speed(legacy, config), 1)
+        actual, _ = v.spatial_audio(samples, rate, legacy, config)
+        expected, _ = v.spatial_audio(samples, rate, {'tone': 'neutral', 'position': 'close_left'}, {})
+        np.testing.assert_array_equal(actual, expected)
 
     def test_cancelled_render_does_not_read_or_change_file(self):
         cancel = threading.Event()
@@ -97,8 +96,6 @@ class VoiceTests(unittest.TestCase):
         signal[rate:rate + 1000] = 0
         with tempfile.TemporaryDirectory() as directory:
             for tone, (_, level) in v.TONES.items():
-                if tone == 'whisper':  # Intentional unvoiced conversion has its own test.
-                    continue
                 for position, pan in v.POSITIONS.items():
                     with self.subTest(tone=tone, position=position):
                         path = Path(directory) / 'speech.wav'
@@ -211,18 +208,17 @@ def live(built=False):
                'rms_left': round(rms[0], 2), 'rms_right': round(rms[1], 2),
                'peak': float(np.max(np.abs(pcm))), 'max_internal_quiet_seconds': round(longest * 0.02, 2),
                'playback_tested': False}
-        if current['tone'] != 'whisper':
-            with wave.open(str(output / (current['tone'] + '-raw.wav'))) as raw:
-                assert raw.getframerate() == rate and raw.getnframes() == frames
-                original = np.frombuffer(raw.readframes(frames), dtype='<i2').reshape(-1, raw.getnchannels()).mean(axis=1)
-            # Constant-power panning may change left/right gain, never sample timing.
-            level = 0.86 + (v.TONES[current['tone']][1] - 0.86) * v.strength(config, 'voice_expression_strength')
-            body = slice(rate // 100, -rate // 100)
-            error = np.abs(np.linalg.norm(pcm[body], axis=1) - np.abs(original[body]) * level * 32767 / 32768)
-            assert error.max() <= 2, 'Postprocessing changed the original waveform'
-            assert np.all(pcm * original[:, None] >= 0), 'Postprocessing changed sample phase'
-            assert not pcm[original == 0].any(), 'Postprocessing added sound into silence'
-            row['dry_sample_error_pcm16'] = round(float(error.max()), 3)
+        with wave.open(str(output / (current['tone'] + '-raw.wav'))) as raw:
+            assert raw.getframerate() == rate and raw.getnframes() == frames
+            original = np.frombuffer(raw.readframes(frames), dtype='<i2').reshape(-1, raw.getnchannels()).mean(axis=1)
+        # Constant-power panning may change left/right gain, never sample timing.
+        level = 0.86 + (v.TONES[current['tone']][1] - 0.86) * v.strength(config, 'voice_expression_strength')
+        body = slice(rate // 100, -rate // 100)
+        error = np.abs(np.linalg.norm(pcm[body], axis=1) - np.abs(original[body]) * level * 32767 / 32768)
+        assert error.max() <= 2, 'Postprocessing changed the original waveform'
+        assert np.all(pcm * original[:, None] >= 0), 'Postprocessing changed sample phase'
+        assert not pcm[original == 0].any(), 'Postprocessing added sound into silence'
+        row['dry_sample_error_pcm16'] = round(float(error.max()), 3)
         shutil.copy2(path, output / (current['tone'] + '.wav'))
         rows.append(row)
     try:
@@ -230,7 +226,7 @@ def live(built=False):
         worker._ensure_server()
         with patch.object(h, 'play_wav_file', inspect), patch.object(h, 'render_voice_wav', capture_raw):
             for tone, position in [('neutral', 'center'), ('bright', 'right'), ('serious', 'left'),
-                                   ('soft', 'close_left'), ('angry', 'center'), ('whisper', 'close_right')]:
+                                   ('soft', 'close_left'), ('angry', 'center')]:
                 current.update(tone=tone, position=position)
                 start = time.monotonic()
                 worker._speak('아까 그 장면은 조금 아쉬웠어. 그래도 이번에는 끝까지 같이 지켜볼게.',
@@ -245,8 +241,8 @@ def live(built=False):
     from faster_whisper.audio import decode_audio
     recognizer = h.SpeechRecognizer(config)
     for row in rows:
-        # These are known speech files. Normal-voice VAD discards unvoiced whispers;
-        # validate intelligibility without changing the production microphone VAD.
+        # These are known speech files; transcribe the whole sample without
+        # changing the production microphone VAD.
         segments, _ = recognizer._load().transcribe(
             decode_audio(str(output / (row['tone'] + '.wav')), sampling_rate=16000),
             language='ko', beam_size=1, vad_filter=False)
@@ -273,7 +269,7 @@ def live_model(built=False):
         for tone, text in [
             ('bright', '드디어 그 보스 잡았어! 같이 신나게 축하해 줘!'),
             ('serious', '오늘 좀 힘들었어. 진지하고 낮고 차분한 목소리로 이야기해 줘.'),
-            ('whisper', '하나야 왼쪽 귀 가까이에서 오늘도 수고했어, 라고 속삭여 줘.')]:
+            ('soft', '하나야 왼쪽 가까이에서 오늘도 수고했어, 라고 부드럽게 말해 줘.')]:
             state = {}
             messages = h.make_messages(prompt, {}, [{'role': 'user', 'content': text}], 16, '')
             started = time.monotonic()
@@ -288,7 +284,7 @@ def live_model(built=False):
             h.save_json(project / 'data/diagnostics/voice-model.json', rows)
             print(json.dumps(row, ensure_ascii=False), flush=True)
             assert state['voice']['tone'] == tone, row
-            if tone == 'whisper':
+            if tone == 'soft':
                 assert state['voice']['position'] == 'close_left', row
         # No user utterance requesting a voice mode this turn: the character may
         # choose a delivery for its own continuation, without keyword replacement.

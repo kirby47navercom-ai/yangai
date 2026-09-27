@@ -12,7 +12,7 @@ TONES = {
     "neutral": (1.0, 0.86), "bright": (1.06, 0.86),
     "serious": (0.95, 0.84), "soft": (0.90, 0.62),
     "angry": (1.07, 0.86), "surprised": (1.08, 0.84),
-    "afraid": (1.03, 0.76), "whisper": (0.92, 0.64),
+    "afraid": (1.03, 0.76),
 }
 # All positions stay at the close microphone. Old 'far' values normalize to center.
 POSITIONS = {
@@ -46,45 +46,6 @@ def voice_speed(voice, config):
     return 1.0 + (TONES[tone][0] - 1.0) * strength(config, "voice_expression_strength")
 
 
-def whisper_audio(mono, rate, amount=0.9):
-    """Dry DSP whisper: aperiodic excitation shaped by the speech spectral envelope."""
-    # ponytail: spectral conversion, not an actor's learned whisper performance. A whisper
-    # reference/model is needed for natural breath, mouth sounds and speaker fidelity.
-    if amount <= 0:
-        return mono
-    size = 2 ** int(np.ceil(np.log2(rate * 0.032)))
-    hop = size // 4
-    window = np.hanning(size)
-    source = np.pad(mono, (size, size))
-    output = np.zeros_like(source, dtype=np.float64)
-    weights = np.zeros_like(output)
-    bins = max(1, int(200 * size / rate))
-    kernel = np.convolve(np.ones(bins), np.ones(bins))
-    kernel /= kernel.sum()
-    frequencies = np.fft.rfftfreq(size, 1 / rate)
-    tilt = np.clip(frequencies / 500, 0.15, 3) ** 0.5
-    random = np.random.default_rng(0)
-    for start in range(0, len(source) - size + 1, hop):
-        frame = source[start:start + size] * window
-        energy = np.mean(frame ** 2)
-        if energy > 1e-10:
-            spectrum = np.fft.rfft(frame)
-            logs = np.log(np.maximum(np.abs(spectrum), 1e-8))
-            pad = len(kernel) // 2
-            envelope = np.exp(np.convolve(np.pad(logs, (pad, pad), mode='edge'), kernel, mode='valid'))
-            noise = np.fft.rfft(random.standard_normal(size) * window)
-            shaped = np.fft.irfft(envelope * tilt * noise / np.maximum(np.abs(noise), 1e-8), size)
-            shaped *= np.sqrt(energy / max(np.mean(shaped ** 2), 1e-12))
-            output[start:start + size] += shaped * window
-        weights[start:start + size] += window ** 2
-    output = (output / np.maximum(weights, 1e-8))[size:size + len(mono)]
-    # Do not introduce breath/hiss into the original silence or extend the waveform.
-    gate_size = max(1, int(rate * 0.003))
-    gate = np.convolve(np.abs(mono), np.ones(gate_size) / gate_size, mode='full')[:len(mono)]
-    output *= np.clip(gate / 0.003, 0, 1)
-    return mono * (1 - amount) + output * amount
-
-
 def spatial_audio(samples, rate, voice, config, previous=0.0):
     """Return dry close-mic stereo PCM and pan, never a room/echo/distance effect."""
     voice = normalize_voice(voice, config)
@@ -101,8 +62,6 @@ def spatial_audio(samples, rate, voice, config, previous=0.0):
     start = previous if amount else 0.0
     pans = start + (target - start) * blend
     level = 0.86 + (TONES[voice["tone"]][1] - 0.86) * strength(config, "voice_expression_strength")
-    if voice["tone"] == "whisper":
-        mono = whisper_audio(mono, rate, strength(config, "voice_whisper_strength", 0.9))
     # Dry amplitude panning only: no delayed samples, pitch shift or room response.
     channels = []
     for side in (-1, 1):
