@@ -19,6 +19,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from hana_voice import VOICE_SCHEMA, normalize_voice, render_voice_wav, voice_speed
+
 
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
@@ -138,6 +140,11 @@ def read_config() -> dict:
         "piper_espeak_data": "%USERPROFILE%\\hana_espeak",
         "tts_enabled": True,
         "tts_length_scale": 0.9,
+        "voice_expression_enabled": True,
+        "voice_expression_strength": 1.0,
+        "voice_spatial_enabled": True,
+        "voice_spatial_strength": 0.8,
+        "tts_fragment_interval": 0.12,
         "num_ctx": 8192,
         "num_predict": 384,
         "temperature": 1.0,
@@ -351,34 +358,6 @@ def _screen_scene_key(text: str) -> set[str]:
     return {token for token in _topic_tokens(text) if token not in generic}
 
 
-class SentenceBuffer:
-    def __init__(self) -> None:
-        self.buffer = ""
-
-    def feed(self, text: str) -> list[str]:
-        self.buffer += text
-        output = []
-        while True:
-            match = re.search(r"(.+?(?:[。！？!?]|\.(?=\s|$)))\s*", self.buffer, flags=re.S)
-            if not match:
-                break
-            sentence = match.group(1).strip()
-            self.buffer = self.buffer[match.end():]
-            if sentence:
-                output.append(sentence)
-        if len(self.buffer) > 140:
-            split_at = max(self.buffer.rfind(" ", 0, 140), self.buffer.rfind("\n", 0, 140))
-            if split_at > 20:
-                output.append(self.buffer[:split_at].strip())
-                self.buffer = self.buffer[split_at:].lstrip()
-        return output
-
-    def flush(self) -> list[str]:
-        text = self.buffer.strip()
-        self.buffer = ""
-        return [text] if text else []
-
-
 def play_wav_file(audio_path: Path, stop_event: threading.Event | None = None) -> None:
     """Play a generated WAV through the Windows default output device."""
     if os.name != "nt":
@@ -415,7 +394,7 @@ def interrupt_speech(worker) -> None:
 
 
 class TTSWorker:
-    def __init__(self, model_path: Path, data_dir: Path, length_scale: float, espeak_data: Path) -> None:
+    def __init__(self, model_path: Path, data_dir: Path, length_scale: float, espeak_data: Path, config=None) -> None:
         os.environ["ESPEAK_DATA_PATH"] = str(espeak_data)
         try:
             from piper import PiperVoice
@@ -425,6 +404,8 @@ class TTSWorker:
         self.voice = PiperVoice.load(str(model_path))
         self.data_dir = data_dir
         self.length_scale = length_scale
+        self.config = config if config is not None else {}
+        self.voice_pose = (0.0, 1.0)
         self.items = queue.Queue()
         self.queue_lock = threading.Lock()
         self.playback_cancel = threading.Event()
@@ -437,12 +418,12 @@ class TTSWorker:
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
 
-    def submit(self, text: str) -> None:
+    def submit(self, text: str, voice=None) -> None:
         text = clean_for_speech(text)
         if self.enabled and len(text) >= 2:
             with self.queue_lock:
                 if not self.stop_event.is_set():
-                    self.items.put((text, self.playback_cancel))
+                    self.items.put((text, self.playback_cancel, normalize_voice(voice, self.config)))
 
     def interrupt(self) -> None:
         interrupt_speech(self)
@@ -474,12 +455,12 @@ class TTSWorker:
             item = self.items.get()
             if item is None:
                 return
-            text, cancel = item
+            text, cancel, voice = item
             if cancel.is_set():
                 continue
             try:
                 self.speaking.set()
-                self._speak(text, cancel)
+                self._speak(text, cancel, voice)
             except Exception as error:  # TTS failure must not kill the chat.
                 self.enabled = False
                 print(f"\n[TTS가 꺼졌어: {error}]", flush=True)
@@ -487,7 +468,7 @@ class TTSWorker:
                 self.speaking.clear()
                 self.last_finished_at = time.monotonic()
 
-    def _speak(self, text: str, cancel: threading.Event) -> None:
+    def _speak(self, text: str, cancel: threading.Event, voice=None) -> None:
         with tempfile.NamedTemporaryFile(prefix="hana_", suffix=".wav", dir=self.data_dir, delete=False) as file:
             audio_path = Path(file.name)
 
@@ -498,11 +479,13 @@ class TTSWorker:
                 self.voice.synthesize_wav(
                     text,
                     wav_file,
-                    SynthesisConfig(length_scale=self.length_scale),
+                    SynthesisConfig(length_scale=self.length_scale / voice_speed(voice, self.config)),
                 )
             if self.stop_event.is_set() or cancel.is_set():
                 return
-            play_wav_file(audio_path, cancel)
+            apply_voice_effects(self, audio_path, voice, cancel)
+            if not cancel.is_set() and not self.stop_event.is_set():
+                play_wav_file(audio_path, cancel)
         finally:
             audio_path.unlink(missing_ok=True)
 
@@ -510,6 +493,27 @@ class TTSWorker:
 def resolve_tts_path(value: str | Path) -> Path:
     """Resolve relative TTS paths beside config.json, not the launch directory."""
     return (ROOT / os.path.expandvars(str(value))).resolve()
+
+
+def configured_ffmpeg(config: dict) -> Path | None:
+    if not config.get("gpt_sovits_ffmpeg"):
+        return None
+    path = resolve_tts_path(config["gpt_sovits_ffmpeg"]) / "ffmpeg.exe"
+    return path if path.is_file() else None
+
+
+def apply_voice_effects(worker, path: Path, voice, cancel: threading.Event) -> None:
+    try:
+        worker.voice_pose = render_voice_wav(path, voice, worker.config, worker.voice_pose,
+                                            configured_ffmpeg(worker.config), cancel)
+    except Exception as error:
+        # Effect failure must not silence an already synthesized, valid utterance.
+        worker.voice_pose = (0.0, 1.0)
+        message = f"음성 효과를 적용하지 못해 원래 음성으로 재생해: {error}"
+        if hasattr(worker, "_status"):
+            worker._status(message)
+        else:
+            print(message, flush=True)
 
 
 class GPTSoVITSTTSWorker:
@@ -520,6 +524,7 @@ class GPTSoVITSTTSWorker:
         self.python = resolve_tts_path(config["gpt_sovits_python"])
         self.config_path = resolve_tts_path(config.get("gpt_sovits_config", "gpt_sovits_hana.yaml"))
         self.ref_audio = resolve_tts_path(config["gpt_sovits_ref_audio"])
+        self.voice_pose = (0.0, 1.0)
         self.port = int(config.get("gpt_sovits_port", 9880))
         self.items = queue.Queue()
         self.queue_lock = threading.Lock()
@@ -574,13 +579,13 @@ class GPTSoVITSTTSWorker:
             if on_status:
                 on_status(f"음성 준비 실패: {error}")
 
-    def submit(self, text: str) -> None:
+    def submit(self, text: str, voice=None) -> None:
         text = clean_for_speech(text)
         if self.enabled and len(text) >= 2:
             self._log(f"TTS 큐 등록: {text[:80]}")
             with self.queue_lock:
                 if not self.stop_event.is_set():
-                    self.items.put((text, self.playback_cancel))
+                    self.items.put((text, self.playback_cancel, normalize_voice(voice, self.config)))
 
     def interrupt(self) -> None:
         interrupt_speech(self)
@@ -619,13 +624,13 @@ class GPTSoVITSTTSWorker:
             item = self.items.get()
             if item is None:
                 return
-            text, cancel = item
+            text, cancel, voice = item
             if cancel.is_set():
                 continue
             try:
                 self.speaking.set()
                 self._log(f"TTS 처리 시작: {text[:80]}")
-                self._speak(text, cancel)
+                self._speak(text, cancel, voice)
             except Exception as error:
                 self.enabled = False
                 self._status(f"음성 재생 실패: {error}")
@@ -697,19 +702,36 @@ class GPTSoVITSTTSWorker:
             time.sleep(0.4)
         raise TimeoutError("GPT-SoVITS 모델 로딩이 180초를 넘겼어")
 
-    def _speak(self, text: str, cancel: threading.Event) -> None:
+    def _reference(self, voice):
+        tone = normalize_voice(voice, self.config)["tone"]
+        # These tags belong to the installed reference pack, not words in the speech.
+        tag = {"angry": "生气", "surprised": "吃惊", "afraid": "恐惧"}.get(tone)
+        if tag:
+            matches = sorted(self.ref_audio.parent.glob(f"【{tag}】*.wav"))
+            if matches:
+                path = matches[0]
+                transcript = path.stem.split("】", 1)[1].replace("_", "?")
+                return path, " ".join(transcript.split())
+        return self.ref_audio, self.config["gpt_sovits_ref_text"]
+
+    def _speak(self, text: str, cancel: threading.Event, voice=None) -> None:
         self._ensure_server()
+        if self.stop_event.is_set() or cancel.is_set():
+            return
+        voice = normalize_voice(voice, self.config)
+        reference, transcript = self._reference(voice)
         payload = {
             "text": text,
             "text_lang": self.config.get("gpt_sovits_text_lang", "ko"),
-            "ref_audio_path": str(self.ref_audio),
+            "ref_audio_path": str(reference),
             "prompt_lang": self.config.get("gpt_sovits_prompt_lang", "ko"),
-            "prompt_text": self.config["gpt_sovits_ref_text"],
+            "prompt_text": transcript,
             "text_split_method": "cut5",
             "batch_size": 1,
             "media_type": "wav",
             "streaming_mode": int(self.config.get("gpt_sovits_streaming_mode", 0)),
-            "speed_factor": 1.0,
+            "speed_factor": voice_speed(voice, self.config),
+            "fragment_interval": max(0.0, min(0.5, float(self.config.get("tts_fragment_interval", 0.12)))),
             "parallel_infer": True,
         }
         request = Request(
@@ -731,7 +753,11 @@ class GPTSoVITSTTSWorker:
                 return
             size = audio_path.stat().st_size
             self._log(f"WAV 생성 완료: {size} bytes, text={text[:80]}")
-            play_wav_file(audio_path, cancel)
+            started = time.monotonic()
+            apply_voice_effects(self, audio_path, voice, cancel)
+            self._log(f"음성 연출: {voice}, 후처리 {time.monotonic() - started:.3f}s")
+            if not cancel.is_set() and not self.stop_event.is_set():
+                play_wav_file(audio_path, cancel)
             self._log("윈도우 기본 장치 재생 완료")
         finally:
             audio_path.unlink(missing_ok=True)
@@ -1238,12 +1264,13 @@ REPLY_SCHEMA = {
     "properties": {"speech": {"type": "string"},
                    **{name: {"type": "string"} for name in REPLY_STATE_FIELDS},
                    "topic_status": {"type": "string", "enum": ["open", "complete", "awaiting_user"]},
+                   "voice": VOICE_SCHEMA,
                    "remember": {"type": "array", "items": {"type": "string"}}},
-    "required": [*REPLY_STATE_FIELDS, "speech", "remember"],
+    "required": [*REPLY_STATE_FIELDS, "speech", "remember", "voice"],
     "additionalProperties": False,
 }
 REPLY_FORMAT_PROMPT = (
-    "\n\n[출력 형식]\nJSON 객체로 speech, topic, stance, emotion, next_intent, topic_status, remember를 작성한다. "
+    "\n\n[출력 형식]\nJSON 객체로 speech, topic, stance, emotion, next_intent, topic_status, remember, voice를 작성한다. "
     "speech만 시청자에게 들려주는 대사다. 나머지는 다음 차례를 위한 짧은 상태 메모이며 각 한 구절로 쓴다. "
     "topic은 현재 화제, stance는 그 화제에 대한 네 구체적인 의견이나 선택, emotion은 현재 감정이다. "
     "stance에 '공감하기', '설명하기' 같은 작업 지시를 쓰지 않는다. 실제로 무엇을 좋아하거나 싫어하는지, "
@@ -1259,11 +1286,17 @@ REPLY_FORMAT_PROMPT = (
     "사용자의 대답이나 실제로 겪지 않은 일을 만들어 대화를 진행하지 않는다. "
     "remember는 이번 실제 사용자 발화에서 앞으로 기억할 호칭·선호·사실을 원문 그대로 짧게 인용한 배열이다. "
     "질문·가정·화면 추측·네가 한 말을 사용자 사실로 기록하지 않는다. 자동 진행에서는 반드시 빈 배열이다."
+    " voice는 이번 대사의 실제 음성 연출이다. tone은 평상시 neutral, 들뜬 기쁨 bright, 진지하고 낮게 serious, "
+    "조용하고 부드럽게 soft, 화났을 때 angry, 놀랄 때 surprised, 겁날 때 afraid 중 대사와 감정에 맞게 고른다. "
+    "position은 보통 center, 옆으로 말할 때 left/right, 가까이 작게 말할 때 close/close_left/close_right, "
+    "멀리 물러나 부를 때 far다. 가까운 연출이 어울리는 장난·비밀·속삭임 요청에는 soft와 close 계열을 쓴다. "
+    "무작위로 위치를 바꾸거나 매번 과장하지 않는다. 연출 이름을 speech에 읽거나 행동 지문으로 쓰지 않는다."
 )
 
 
 def apply_reply_state(memory: dict, state: dict) -> None:
     memory["broadcast_state"] = {key: state.get(key, "") for key in (*REPLY_STATE_FIELDS, "action", "basis")}
+    memory["broadcast_state"]["voice"] = normalize_voice(state.get("voice"))
     quotes = memory.get("user_quotes", []) + state.get("remember", [])
     # Keep exact user statements separate from model-written summaries. Latest corrections take precedence.
     memory["user_quotes"] = list(dict.fromkeys(reversed(quotes)))[::-1][-30:]
@@ -1274,6 +1307,7 @@ def apply_reply_state(memory: dict, state: dict) -> None:
 
 
 REVIEW_CHECKS = {
+    "candidate_contains_stage_directions": "non_speech",
     "candidate_misses_user_request": "missed_user",
     "candidate_continues_unrequested_fiction": "fiction_loop",
     "candidate_asks_known_question": "already_answered",
@@ -1297,6 +1331,9 @@ new_information에는 후보가 새로 더한 실질적 요점을 짧게 쓴다.
 새 사실만이 아니라 새로운 농담·관점·구체적인 선택도 새 요점이다. 같은 질문에 보기만 추가한 것은 새 요점이 아니다.
 각 boolean은 해당 문제가 있으면 true다. 말투가 친근하거나 새 명사가 나왔다는 이유만으로 모두 false로 하지 않는다.
 
+candidate_contains_stage_directions: 실제로 말할 대사 안에 '(귓속말로)', '*다가가며*' 같은 연기 지시나 행동 지문이 섞였는가?
+  괄호나 별표 자체가 문제가 아니다. 말하는 내용을 보충하는 괄호, 인용한 문구, '가까이 갈게'라는 실제 대사는 false다.
+  목소리·위치 연출은 별도 voice 필드의 역할이므로 무대 지시를 speech에서 읽으면 true다.
 candidate_misses_user_request: automatic=false일 때 마지막 질문에 답하지 않거나, 지금도 유효한 사용자 요청·정정을 어기는가?
   예: 설명 대신 수다를 요청했는데 강의를 계속하거나, 위로하지 말라고 했는데 다시 위로한다.
   '네가 한다면 재도전할 거야?'에 '나라면 다시 도전해'라는 자기 선택을 답하는 것은 위로가 아니며 false다.
@@ -1561,6 +1598,7 @@ def generate_reply(config: dict, messages: list[dict], recent_answers=(), contro
             feedback = (
                 "수정 요청: 아래 후보들은 아직 방송하지 않은 폐기된 초안이다. "
                 + {
+                    "non_speech": "목소리나 움직임을 설명하는 연기 지문이 대사에 섞였다. 연출은 voice 필드로 전달하고 speech에는 입으로 말할 내용만 쓴다. ",
                     "already_answered": "사용자가 이미 말한 정보를 다시 물었다. 그 답을 활용하여 네 선택이나 대응을 새롭게 말한다. ",
                     "topic_jump": "직전 화제에서 관련 없는 소재로 튀었다. 현재 진행하던 화제로 돌아와 아직 안 한 구체적인 내용을 더한다. ",
                     "ungrounded": "실제로 일어나지 않은 사건이나 사용자 대답을 만들었다. 알려진 사실만 쓰고, 상상은 조건이나 가정으로 표현한다. ",
@@ -1630,6 +1668,7 @@ def generate_reply(config: dict, messages: list[dict], recent_answers=(), contro
                     state["next_intent"] = ""
                 state.update({key: plan.get(key, "") if plan else "" for key in ("action", "basis")})
                 state["spoken_point"] = answer
+                state["voice"] = normalize_voice(payload.get("voice"), config)
                 user_text = messages[-1]["content"] if messages and messages[-1]["role"] == "user" and not control_text else ""
                 state["remember"] = [quote.strip() for quote in payload["remember"]
                                      if isinstance(quote, str) and 2 <= len(quote.strip()) <= 300
@@ -1887,7 +1926,7 @@ def main() -> None:
         piper_espeak_data = Path(os.path.expandvars(config.get("piper_espeak_data", "%USERPROFILE%\\hana_espeak")))
         if config.get("tts_enabled") and piper_model.exists() and piper_espeak_data.exists():
             try:
-                tts = TTSWorker(piper_model, DATA_DIR, float(config["tts_length_scale"]), piper_espeak_data)
+                tts = TTSWorker(piper_model, DATA_DIR, float(config["tts_length_scale"]), piper_espeak_data, config)
                 print("하나 음성: Piper 준비됨")
             except Exception as error:
                 print(f"하나 음성: 꺼짐 ({error})")
@@ -1997,7 +2036,7 @@ def main() -> None:
                 full_answer = generate_reply(config, messages, on_state=lambda state: apply_reply_state(memory, state))
                 print(full_answer, end="", flush=True)
                 if tts and full_answer.strip():
-                    tts.submit(full_answer)
+                    tts.submit(full_answer, memory.get("broadcast_state", {}).get("voice"))
                 print("\n")
             except Exception as error:
                 print(f"\n[응답 실패: {error}]\n")

@@ -69,7 +69,7 @@ class ConversationTests(unittest.TestCase):
         app.root = SimpleNamespace(after=lambda delay, callback: callback())
         lines, spoken = [], []
         app._line = lambda who, text, tag: lines.append(text)
-        app._speak = spoken.append
+        app._speak = lambda text, voice=None: spoken.append(text)
         with tempfile.TemporaryDirectory() as directory:
             with patch.object(app_module, "DATA_DIR", Path(directory)):
                 with patch.object(h, "stream_chat", side_effect=[[reply("<SILENT>")], [reply("이번엔 왼쪽 길로 가보고 싶어. 보물을 놓쳤을 수도 있잖아.", stance="보물 탐색")]]):

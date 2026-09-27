@@ -16,7 +16,6 @@ from hana_chat import (
     ROOT,
     ScreenContext,
     ScreenWatcher,
-    SentenceBuffer,
     SpeechRecognizer,
     GPTSoVITSTTSWorker,
     TTSWorker,
@@ -244,7 +243,7 @@ class HanaApp:
         if not model.exists() or not espeak.exists():
             return None
         try:
-            return TTSWorker(model, DATA_DIR, float(self.config["tts_length_scale"]), espeak)
+            return TTSWorker(model, DATA_DIR, float(self.config["tts_length_scale"]), espeak, self.config)
         except Exception:
             return None
 
@@ -301,6 +300,13 @@ class HanaApp:
         self.duplex = tk.BooleanVar(value=self.config.get("mic_listen_during_tts", True))
         tk.Checkbutton(buttons, text="헤드폰 모드 · 말하는 중에도 듣기", variable=self.duplex,
                        command=self._toggle_duplex, bg="#111827", fg="#e5e7eb", selectcolor="#1f2937").pack(side="left", padx=8)
+        voice_controls = tk.Frame(main, bg="#111827")
+        voice_controls.pack(fill="x", padx=18, pady=(0, 10))
+        self.expressive_voice = tk.BooleanVar(value=self.config.get("voice_expression_enabled", True))
+        self.spatial_voice = tk.BooleanVar(value=self.config.get("voice_spatial_enabled", True))
+        for label, variable in (("감정 말투 · 높낮이", self.expressive_voice), ("입체 음성 · 헤드폰용", self.spatial_voice)):
+            tk.Checkbutton(voice_controls, text=label, variable=variable, command=self._toggle_voice_effects,
+                           bg="#111827", fg="#e5e7eb", selectcolor="#1f2937").pack(side="left", padx=(0, 12))
 
     def _load_avatar(self) -> None:
         path = ROOT / "assets" / "hana_reference.jpg"
@@ -548,9 +554,8 @@ class HanaApp:
             return ""
         apply_reply_state(self.memory, state)
         self.root.after(0, lambda: self._line("하나", answer, "hana"))
-        sentence_buffer = SentenceBuffer()
-        for sentence in sentence_buffer.feed(answer) + sentence_buffer.flush():
-            self._speak(sentence)
+        # One accepted utterance -> one synthesis/playback, not synthesize-wait per sentence.
+        self._speak(answer, state.get("voice"))
         self.recent_auto_answers.append(answer)
         del self.recent_auto_answers[:-12]
         return answer
@@ -562,9 +567,9 @@ class HanaApp:
             self._remember_answer(full.strip(), "user")
         return full
 
-    def _speak(self, text: str) -> None:
+    def _speak(self, text: str, voice=None) -> None:
         if self.tts:
-            self.tts.submit(text)
+            self.tts.submit(text, voice)
 
     def _line(self, speaker: str, text: str, tag: str) -> None:
         self._start_line(speaker, tag)
@@ -670,6 +675,12 @@ class HanaApp:
         if self.tts:
             self.tts.enabled = not self.tts.enabled
         self._update_buttons()
+
+    def _toggle_voice_effects(self) -> None:
+        self.config["voice_expression_enabled"] = self.expressive_voice.get()
+        self.config["voice_spatial_enabled"] = self.spatial_voice.get()
+        save_json(CONFIG_FILE, self.config)
+        self._system("음성 연출 설정을 저장했어. 다음 음성부터 적용할게.")
 
     def _toggle_duplex(self) -> None:
         self.config["mic_listen_during_tts"] = self.duplex.get()

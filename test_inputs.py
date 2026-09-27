@@ -43,6 +43,7 @@ class InputTests(unittest.TestCase):
                         self.assertEqual(h.resolve_tts_path(assets / "ref.wav"), assets / "ref.wav")
                         with patch.object(worker, "_ensure_server"), \
                              patch.object(h, "urlopen", return_value=io.BytesIO(b"test")) as request, \
+                             patch.object(h, "render_voice_wav", return_value=(0, 1)), \
                              patch.object(h, "play_wav_file"):
                             worker._speak("경로 검사", threading.Event())
                         payload = json.loads(request.call_args.args[0].data)
@@ -314,7 +315,7 @@ def live():
         app.screen_event_id, app.pending_screen = 0, False
         app._runtime_log = lambda message: None
         app._line = lambda who, text, tag: print(json.dumps({"speaker": who, "text": text}, ensure_ascii=False), flush=True)
-        app._speak = lambda text: None
+        app._speak = lambda text, voice=None: None
         with patch.multiple(h, DATA_DIR=data, MEMORY_FILE=data / "memory.json"):
             with patch.multiple(a, DATA_DIR=data, MEMORY_FILE=data / "memory.json"):
                 app._on_mic_text(transcript)
