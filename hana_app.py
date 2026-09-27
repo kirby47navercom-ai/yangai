@@ -304,7 +304,7 @@ class HanaApp:
         voice_controls.pack(fill="x", padx=18, pady=(0, 10))
         self.expressive_voice = tk.BooleanVar(value=self.config.get("voice_expression_enabled", True))
         self.spatial_voice = tk.BooleanVar(value=self.config.get("voice_spatial_enabled", True))
-        for label, variable in (("감정 말투 · 높낮이", self.expressive_voice), ("입체 음성 · 헤드폰용", self.spatial_voice)):
+        for label, variable in (("감정 말투 · 높낮이", self.expressive_voice), ("근접 입체 음성 · 헤드폰용", self.spatial_voice)):
             tk.Checkbutton(voice_controls, text=label, variable=variable, command=self._toggle_voice_effects,
                            bg="#111827", fg="#e5e7eb", selectcolor="#1f2937").pack(side="left", padx=(0, 12))
 

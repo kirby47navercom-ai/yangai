@@ -43,7 +43,7 @@ class InputTests(unittest.TestCase):
                         self.assertEqual(h.resolve_tts_path(assets / "ref.wav"), assets / "ref.wav")
                         with patch.object(worker, "_ensure_server"), \
                              patch.object(h, "urlopen", return_value=io.BytesIO(b"test")) as request, \
-                             patch.object(h, "render_voice_wav", return_value=(0, 1)), \
+                             patch.object(h, "render_voice_wav", return_value=0), \
                              patch.object(h, "play_wav_file"):
                             worker._speak("경로 검사", threading.Event())
                         payload = json.loads(request.call_args.args[0].data)

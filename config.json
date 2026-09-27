@@ -11,6 +11,7 @@
   "voice_expression_strength": 1.0,
   "voice_spatial_enabled": true,
   "voice_spatial_strength": 0.8,
+  "voice_whisper_strength": 0.9,
   "tts_fragment_interval": 0.12,
   "gpt_sovits_root": "tts/v2ProPlus/GPT-SoVITS",
   "gpt_sovits_python": "tts/v2ProPlus/.venv312/Scripts/python.exe",

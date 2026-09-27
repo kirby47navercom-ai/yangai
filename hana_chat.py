@@ -144,6 +144,7 @@ def read_config() -> dict:
         "voice_expression_strength": 1.0,
         "voice_spatial_enabled": True,
         "voice_spatial_strength": 0.8,
+        "voice_whisper_strength": 0.9,
         "tts_fragment_interval": 0.12,
         "num_ctx": 8192,
         "num_predict": 384,
@@ -405,7 +406,7 @@ class TTSWorker:
         self.data_dir = data_dir
         self.length_scale = length_scale
         self.config = config if config is not None else {}
-        self.voice_pose = (0.0, 1.0)
+        self.voice_pose = 0.0
         self.items = queue.Queue()
         self.queue_lock = threading.Lock()
         self.playback_cancel = threading.Event()
@@ -508,7 +509,7 @@ def apply_voice_effects(worker, path: Path, voice, cancel: threading.Event) -> N
                                             configured_ffmpeg(worker.config), cancel)
     except Exception as error:
         # Effect failure must not silence an already synthesized, valid utterance.
-        worker.voice_pose = (0.0, 1.0)
+        worker.voice_pose = 0.0
         message = f"음성 효과를 적용하지 못해 원래 음성으로 재생해: {error}"
         if hasattr(worker, "_status"):
             worker._status(message)
@@ -524,7 +525,7 @@ class GPTSoVITSTTSWorker:
         self.python = resolve_tts_path(config["gpt_sovits_python"])
         self.config_path = resolve_tts_path(config.get("gpt_sovits_config", "gpt_sovits_hana.yaml"))
         self.ref_audio = resolve_tts_path(config["gpt_sovits_ref_audio"])
-        self.voice_pose = (0.0, 1.0)
+        self.voice_pose = 0.0
         self.port = int(config.get("gpt_sovits_port", 9880))
         self.items = queue.Queue()
         self.queue_lock = threading.Lock()
@@ -1287,9 +1288,13 @@ REPLY_FORMAT_PROMPT = (
     "remember는 이번 실제 사용자 발화에서 앞으로 기억할 호칭·선호·사실을 원문 그대로 짧게 인용한 배열이다. "
     "질문·가정·화면 추측·네가 한 말을 사용자 사실로 기록하지 않는다. 자동 진행에서는 반드시 빈 배열이다."
     " voice는 이번 대사의 실제 음성 연출이다. tone은 평상시 neutral, 들뜬 기쁨 bright, 진지하고 낮게 serious, "
-    "조용하고 부드럽게 soft, 화났을 때 angry, 놀랄 때 surprised, 겁날 때 afraid 중 대사와 감정에 맞게 고른다. "
-    "position은 보통 center, 옆으로 말할 때 left/right, 가까이 작게 말할 때 close/close_left/close_right, "
-    "멀리 물러나 부를 때 far다. 가까운 연출이 어울리는 장난·비밀·속삭임 요청에는 soft와 close 계열을 쓴다. "
+    "조용하고 부드럽게 soft, 숨 섞인 속삭임·위스퍼·ASMR 요청에는 whisper, "
+    "화났을 때 angry, 놀랄 때 surprised, 겁날 때 afraid 중 대사와 감정에 맞게 고른다. "
+    "언제나 마이크 바로 가까이에서 말한다. position은 마이크 정면 center/close, "
+    "왼쪽 left/close_left, 오른쪽 right/close_right다. 멀리 물러나거나 방 울림을 연출하지 않는다. "
+    "작게 말하는 soft와 숨으로 속삭이는 whisper를 구분하고, 속삭임을 요청하면 whisper를 쓴다. "
+    "사용자가 매번 지시하지 않아도 비밀을 살짝 털어놓거나 장난스럽게 귀띔하고 싶은 순간에는 "
+    "네가 whisper와 좌우 위치를 골라도 된다. 음성 연출은 실제 대화 상황과 감정에 맞춰 스스로 선택한다. "
     "무작위로 위치를 바꾸거나 매번 과장하지 않는다. 연출 이름을 speech에 읽거나 행동 지문으로 쓰지 않는다."
 )
 
