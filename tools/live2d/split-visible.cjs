@@ -4,12 +4,14 @@ const sharp=require('sharp');
 const {createCanvas,Path2D,StrokeCap,StrokeJoin,loadImage}=require('@napi-rs/canvas');
 const psd=require('ag-psd');
 psd.initializeCanvas(createCanvas,(width,height)=>({width,height,data:new Uint8ClampedArray(width*height*4)}));
-const root=path.resolve(__dirname,'../..'),dest=path.join(root,'assets/live2d/hana-v6-parts');
+const root=path.resolve(__dirname,'../..'),variant=process.argv[2]||'hana-v6-parts';
+assert(/^hana-v6-[a-z-]+$/.test(variant),'Invalid output variant');
+const dest=path.join(root,'assets/live2d',variant);
 const W=4096,H=6144,S=4,hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 function raster(d){
   let p=new Path2D(d.d);if(d.stroke)p=p.stroke({width:d.stroke,cap:StrokeCap.Round,join:StrokeJoin.Round});
   const [x0,y0,x1,y1]=p.computeTightBounds();
-  const margin=d.refine?32:1;
+  const margin=d.refine?Math.max(32,(d.refine.radius||12)+4):1;
   const left=Math.max(0,Math.floor(x0*S)-margin),top=Math.max(0,Math.floor(y0*S)-margin);
   const width=Math.min(W,Math.ceil(x1*S)+margin)-left,height=Math.min(H,Math.ceil(y1*S)+margin)-top;
   assert(width>0&&height>0,d.id);
@@ -24,7 +26,7 @@ async function main(){
   const {data:source,info}=await sharp(sourceBytes).ensureAlpha().raw().toBuffer({resolveWithObject:true});
   assert.equal(info.width,W);assert.equal(info.height,H);assert.equal(info.channels,4);
   const owners=new Uint16Array(W*H),domains=new Uint16Array(W*H),masks=defs.map(raster);
-  const scratch=path.join(root,'.local-tools/live2d/refine-v6'),jobs=[];
+  const scratch=path.join(root,'.local-tools/live2d',variant+'-masks'),jobs=[];
   fs.mkdirSync(scratch,{recursive:true});
   for(const [n,d]of defs.entries())if(d.refine){
     const m=masks[n],mask=path.join(scratch,d.id+'-mask.png'),img=path.join(scratch,d.id+'-source.png'),result=path.join(scratch,d.id+'-refined.png');
@@ -42,9 +44,10 @@ async function main(){
   for(const pass of ['base','detail'])defs.forEach((d,n)=>{
     if((d.base?'base':'detail')!==pass)return;
     const m=masks[n],allowed=d.within?d.within.map(id=>{assert(ids.has(id),id);return ids.get(id);}):null;
+    const parents=d.of?d.of.map(id=>{assert(ids.has(id),id);return ids.get(id);}):null;
     for(let y=0;y<m.height;y++)for(let x=0;x<m.width;x++){
       const i=(y+m.top)*W+x+m.left;
-      if(!source[i*4+3]||m.data[(y*m.width+x)*4+3]<128||(allowed&&!allowed.includes(domains[i])))continue;
+      if(!source[i*4+3]||m.data[(y*m.width+x)*4+3]<128||(allowed&&!allowed.includes(domains[i]))||(parents&&!parents.includes(owners[i])))continue;
       owners[i]=n+1;if(d.base)domains[i]=n+1;
     }
   });

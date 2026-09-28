@@ -1,0 +1,21 @@
+{
+  "source": "../hana-v6/hana-refined-4k.png",
+  "sourceSHA256": "f91e25e12a870c202511d97912caa3ed196563a6e8052a314b0f965ab571e00a",
+  "canvas": [
+    4096,
+    6144
+  ],
+  "foregroundPixels": 9708969,
+  "unassignedPixels": 0,
+  "reassemblyMismatchPixels": 0,
+  "actualLayers": 192,
+  "emptyMasks": [],
+  "residuePixels": 49785,
+  "psdRoundTrip": "PASS",
+  "psdBytes": 41015257,
+  "hiddenSurfacesReconstructed": 0,
+  "semanticBoundaryReview": "INCOMPLETE",
+  "fineSeparationComplete": false,
+  "rigReady": false,
+  "cubismImportTested": false
+}
