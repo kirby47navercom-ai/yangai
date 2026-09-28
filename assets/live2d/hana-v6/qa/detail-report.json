@@ -1,0 +1,41 @@
+{
+  "base": "../hana-v5/hana-clean-4x.png",
+  "output": "hana-refined-4k.png",
+  "width": 4096,
+  "height": 6144,
+  "patches": [
+    {
+      "file": "face-detail.png",
+      "x": 1440,
+      "y": 328,
+      "size": 1024,
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 1024,
+        "height": 968
+      },
+      "fade": 20,
+      "alpha": "detail"
+    },
+    {
+      "file": "chest-detail.png",
+      "x": 1820,
+      "y": 1396,
+      "size": 704,
+      "crop": {
+        "left": 236,
+        "top": 148,
+        "width": 240,
+        "height": 484
+      },
+      "fade": 8,
+      "alpha": "base"
+    }
+  ],
+  "changedPixels": 1094322,
+  "outsideChanges": 0,
+  "clothAlphaUnchanged": "PASS",
+  "rgbaRoundTrip": "PASS",
+  "note": "Localized high-resolution redraws; the rest is a 4x upscaled source. Not a layered PSD."
+}

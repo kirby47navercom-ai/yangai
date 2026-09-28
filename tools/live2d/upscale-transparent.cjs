@@ -6,7 +6,9 @@ const {execFileSync}=require('node:child_process');
 const sharp=require('sharp');
 const root=path.resolve(__dirname,'../..');
 async function main() {
-  const source=path.join(root,'assets/live2d/hana-v4/hana-clean-native.png');
+  const source=process.argv[2]?path.resolve(process.argv[2]):path.join(root,'assets/live2d/hana-v4/hana-clean-native.png');
+  const output=path.join(path.dirname(source),'hana-clean-4x.png');
+  assert.notEqual(source,output,'Source and output must be different');
   const temp=path.join(root,'.local-tools/live2d');
   const tool=path.join(root,'.local-tools/realesrgan-20220424');
   const meta=await sharp(source).metadata();
@@ -20,7 +22,6 @@ async function main() {
   const alpha=await sharp(source).extractChannel(3).resize(info.width,info.height).greyscale().raw().toBuffer();
   const rgba=Buffer.alloc(info.width*info.height*4);
   for(let i=0;i<alpha.length;i++){rgba[i*4]=rgb[i*3];rgba[i*4+1]=rgb[i*3+1];rgba[i*4+2]=rgb[i*3+2];rgba[i*4+3]=alpha[i];}
-  const output=path.join(root,'assets/live2d/hana-v4/hana-clean-4x.png');
   await sharp(rgba,{raw:{width:info.width,height:info.height,channels:4}}).png().toFile(output);
   const savedAlpha=await sharp(output).extractChannel(3).raw().toBuffer();
   assert.deepEqual(savedAlpha,alpha,'Output alpha differs from resized native alpha');

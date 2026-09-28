@@ -1,0 +1,9 @@
+Use case: precise-object-edit.
+This square image is an EXACT detail crop of Hana's chest, bow, dark inner garment and long necktie. Redraw ONLY within this same crop in high native detail; preserve the position, scale, framing and geometry of every garment boundary so it can be registered into the original full-body character.
+
+The long central necktie must be an unmistakably separate piece OVER the near-black underlying inner garment. Draw a crisp continuous left and right silhouette from below the bow down to the squared tip. Its main cloth is a FLAT charcoal base with ONE or TWO clearly shaped flat cel-shadows; no mottling, no wavy gray reflection blobs, no blurry pale streak down its middle. The underlying bodice is a distinctly darker near-black. Keep the existing adjacent fold/overlap geometry but make it cleanly bounded.
+
+At the end of the tie keep the existing sequence and size of the blue/white/red fabric bands, with flat solid-color fills and straight hard boundaries. The transition from charcoal to the blue/white/red tip is abrupt and CLEAR. NO blue glow, NO color fade up the tie, NO gradient bridging the colors. This is sewn fabric with crisp color blocks, not illuminated material.
+
+Preserve the red/blue bow with its round center brooch, white jacket panels, dark center bodice, pockets and metal pieces in their exact positions and same colors. Do not redesign or remove any of them. Clean simple cell-shading with restrained soft shading inside individual regions, not across garment edges. Soft smooth line curves but crisp legible outlines. No grain, film grain, moire, mottling, scratches, glitter, particles, bloom, lens effect or aura.
+Same SQUARE CROP only, high native clarity, no zoom-out, no new view, no labels or text, no watermark. Transparent RGBA for any genuinely empty area; the cloth itself stays opaque.

@@ -1,0 +1,16 @@
+Use case: style-transfer / identity-preserving fresh redraw.
+Create a new clean illustration of the SAME Hana character on a genuinely transparent canvas. The supplied image is a character-design reference, not a bitmap to cut out or erase.
+
+사용자의 최우선 표현 지침:
+"머리카락을 단순하게 표현하고, 이미지는 부드러운 선으로 표현하며, 깔끔한 셀 셰이딩과 소프트 셰이딩을 사용하고, 반짝이 효과나 과도한 파티클없이 정돈되고 깔끔한 일러스트로 표현해. 그림 전체에 자글거림, 모아레, 필름 그레인, 불필요한 블룸 효과는 절대로 있으면 안돼."
+
+Make this change visibly clear: simplify the HAIR into a small number of broad, flowing, cohesive locks and curls with smooth silhouettes and only a few internal division lines. Preserve the red/blue/white twin-tail hairstyle and forelock pattern, but eliminate the cloud of thin flyaway hairs and scratchy individual hair strokes. Hair shine is restrained broad color shapes, not glitter or streaks of many sharp reflections.
+
+Rendering: soft, smooth, controlled-weight linework; clean flat base colors; deliberate cel-shadow shapes combined with restrained broad soft shading. Uniform clean surfaces, no tiny texture variation. Softness must come from tasteful shading, NOT blur. Avoid jagged/ragged lines, mottled fabric, sketch marks, fuzzy brush edges, stippling, crosshatching, sharpened texture and noisy engraving. Absolutely NO grain, film grain, moiré, speckle, glitter, sparkles, particles, bloom, aura, haze, lens effects or glowing background. Render at the highest practical native resolution with clean antialiasing.
+
+Preserve the character design and composition: full-body front pose, slight head tilt, narrow half-lidded eyes (viewer-left red, viewer-right blue), small sly smile, black segmented hair ornaments, same proportions and outfit silhouette. Keep ALL original red/blue cloth colors, cape and bow, cuffs, skirt panels and border stripes, gold motifs, pockets, straps, flowers, jewels, medallions and tassels. Draw those ornaments as clean readable shapes; do not remove them or convert colored cloth into blank white/black cloth.
+
+Keep ONE thick, soft white ermine/weasel tail with only its terminal tip black. Preserve its broad rounded U/C curve and volume. Use a few large soft fur clumps and calm cel/soft shading instead of hundreds of scratchy fur marks. Smooth continuous contour, no missing chunks, dents, hard cuts, thinning or spiky needle fur.
+
+Canvas: true RGBA transparency, with opaque character surfaces and transparent empty gaps between hair locks, sleeves and waist, fingers and legs, and inside the curved tail. Keep actual jacket lining opaque. Do not draw a background, shadow, checkerboard pattern or glow. Entire ahoge, hands, boots and tail inside the canvas with a small clear margin.
+No text or watermark. New clean linework and color rendering from scratch; no automatic background-erasing or texture-filter version of the old image.
