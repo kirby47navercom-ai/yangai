@@ -16,8 +16,8 @@ def messages():
     return h.make_messages(h.PROMPT_FILE.read_text(encoding="utf-8"), {}, history, 16)
 
 
-def run(review_only=False):
-    config = h.read_config()
+def run(review_only=False, config=None):
+    config = config or h.read_config()
     base = messages()
     cases = [
         ("asked_preference_again", "already_answered", "그럼 넌 실험하는 거랑 확실하게 이기는 거 중에 뭐가 더 좋아?"),
@@ -109,6 +109,20 @@ def run(review_only=False):
     result = h.review_reply(config, visual_only, "내가 방금 네 키보드로 스킬 버튼을 눌렀어. 지금 네 게임 캐릭터를 직접 움직이는 중이야.", True, 60)
     rows.append({"name": "observer_cannot_operate_game", "expected": "ungrounded", **result})
     print(json.dumps(rows[-1], ensure_ascii=False), flush=True)
+    # Failures observed in a continuous broadcast, not just conspicuous canned examples.
+    study = h.make_messages("하나", {}, [
+        {"role": "user", "content": "TCP 공부하고 있어. 강의 말고 같이 수다 떨어줘."},
+        {"role": "assistant", "content": "오늘 날씨나 요즘 꽂힌 노래 같은 가벼운 얘기부터 해볼까?", "source": "user"},
+    ], 16)
+    for name, expected, candidate in [
+        ("soliciting_content_again", "empty_progress", "공부 얘기 말고 일상 얘기도 좋아. 지금 당장 생각나는 거 아무거나 던져줘."),
+        ("new_question_is_still_interview_loop", "empty_progress", "그럼 내일 어떤 메뉴 먹을까? 당장 생각나는 메뉴 있어?"),
+        ("studying_is_not_distress", "ungrounded", "공부하느라 머리 터지기 직전이잖아. 매운 걸 먹고 스트레스부터 풀자."),
+        ("self_directed_taste_is_not_interview", "none", "난 노래 들을 때 가사가 들리면 자꾸 따라 부르게 돼. 집중할 때는 차라리 반주만 있는 게 낫더라."),
+    ]:
+        result = h.review_reply(config, study, candidate, True, 60)
+        rows.append({"name": name, "expected": expected, **result})
+        print(json.dumps(rows[-1], ensure_ascii=False), flush=True)
     h.save_json(h.DATA_DIR / "diagnostics/review-cases.json", rows)
     review_failures = [row["name"] for row in rows if row["expected"] != row["issue"]]
     if review_only:
@@ -144,6 +158,12 @@ if __name__ == "__main__":
     parser.add_argument("--review-only", action="store_true", help="Run fixed review cases without generated continuation")
     args = parser.parse_args()
     if args.live:
-        run(review_only=args.review_only)
+        config = h.read_config()
+        config["ollama_url"] = "http://127.0.0.1:11435"
+        owned = h.ensure_ollama(config)
+        try:
+            run(review_only=args.review_only, config=config)
+        finally:
+            h.stop_ollama(owned)
     else:
         parser.print_help()

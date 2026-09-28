@@ -201,13 +201,40 @@ class ConversationTests(unittest.TestCase):
         self.assertEqual(h.dialogue_evidence(messages, active=True), active)
         self.assertEqual(len(h.dialogue_evidence(messages)), 5)
 
-    def test_completed_idea_routes_to_new_subject_not_another_expansion(self):
+    def test_completed_utterance_does_not_force_abandoning_subject(self):
         config = {"model": "fake", "ollama_url": "http://127.0.0.1:11434", "keep_alive": "1m", "num_ctx": 8192}
         messages = h.make_messages("하나", {"broadcast_state": {"topic_status": "complete"}}, [], 16)
         plan = {"basis": "reflection", "action": "transition", "anchor": "끝난 이야기", "user_constraint": "", "new_point": "다른 관심사"}
         with patch.object(h, "request_json", return_value={"message": {"content": json.dumps(plan)}}) as call:
             h.plan_continuation(config, messages, 30)
-        self.assertEqual(call.call_args.args[1]["format"]["properties"]["action"]["enum"], ["transition"])
+        actions = call.call_args.args[1]["format"]["properties"]["action"]["enum"]
+        self.assertIn("develop", actions)
+        self.assertIn("transition", actions)
+        self.assertFalse(json.loads(call.call_args.args[1]["messages"][-1]["content"])["topic_exhausted"])
+
+    def test_attention_anchor_is_latest_input_not_old_spoken_ledger(self):
+        config = {"model": "fake", "ollama_url": "http://localhost:11435", "keep_alive": "1m", "num_ctx": 8192}
+        messages = h.make_messages("하나", {"spoken_points": ["옛날 질문"]}, [
+            {"role": "assistant", "content": "방금 한 말", "source": "idle", "generation_version": 2}], 16)
+        plan = {"basis": "reflection", "action": "develop", "anchor": "방금 한 말", "user_constraint": "", "new_point": "새 요점"}
+        with patch.object(h, "request_json", return_value={"message": {"content": json.dumps(plan)}}) as call:
+            result = h.plan_continuation(config, messages, 30)
+        self.assertEqual(result["anchor"], "방금 한 말")
+        self.assertNotIn("anchor", call.call_args.args[1]["format"]["properties"])
+        self.assertEqual(json.loads(call.call_args.args[1]["messages"][-1]["content"])["attention_anchor"], "방금 한 말")
+        messages[0].update(_screen_pending=True, _screen="최신 패배 결과")
+        plan.update(basis="screen", action="screen", anchor="최신 패배 결과")
+        with patch.object(h, "request_json", return_value={"message": {"content": json.dumps(plan)}}) as call:
+            result = h.plan_continuation(config, messages, 30)
+        self.assertEqual(result["anchor"], "최신 패배 결과")
+        long_input = "길이가 긴 사용자 질문입니다. " * 100
+        messages.append({"role": "user", "content": long_input})
+        plan.update(action="respond", basis="user", confirmation_quote="", premise_source="none")
+        with patch.object(h, "request_json", return_value={"message": {"content": json.dumps(plan)}}) as call:
+            result = h.plan_continuation(config, messages, 30, automatic=False)
+        self.assertEqual(result["anchor"], long_input[:600])
+        self.assertNotIn("anchor", call.call_args.args[1]["format"]["properties"])
+        self.assertEqual(json.loads(call.call_args.args[1]["messages"][-1]["content"])["attention_anchor"], long_input)
 
     def test_pruned_monologue_is_still_known_to_planner_as_already_spoken(self):
         history = [{"role": "assistant", "content": line, "source": "idle", "generation_version": 2}
@@ -296,6 +323,19 @@ class ConversationTests(unittest.TestCase):
                 with patch.object(h, "plan_continuation", return_value={"anchor": "게임", "new_point": "함정만 사용"}):
                     answer = h.generate_reply({}, [], ["실험하는 게임이 좋아.", "엉뚱한 전략도 재밌어."], control_text="진행")
         self.assertEqual(answer, novel)
+
+    def test_stored_utterance_outside_recent_replies_is_regenerated(self):
+        old = "공부하다가 너무 기계적인 규칙에 질릴 것 같으면 언제든 말해줘. 머리 식히자."
+        new = "나는 책상에 간식 놓으면 공부보다 포장 뜯는 소리를 더 열심히 듣게 돼."
+        messages = h.make_messages("하나", {"spoken_points": [old]}, [], 16)
+        attempts = []
+        with patch.object(h, "plan_continuation", return_value={"action": "develop", "basis": "reflection"}), \
+             patch.object(h, "stream_chat", side_effect=[[reply(old)], [reply(new)]]), \
+             patch.object(h, "review_reply", return_value={"issue": "none"}) as review:
+            answer = h.generate_reply({}, messages, [], control_text="자동 진행", on_attempt=attempts.append)
+        self.assertEqual(answer, new)
+        self.assertEqual([item["reason"] for item in attempts], ["repeated", "accepted"])
+        self.assertEqual(review.call_count, 1)
 
     def test_corrected_unspoken_draft_is_reviewed_not_rejected_as_already_spoken(self):
         first = "다음 판에 무조건 성공할 것 같아. 난 체력이 조금 남았을 때 포기하면 계속 생각나서 바로 도전할 거야."
@@ -441,6 +481,7 @@ class ConversationTests(unittest.TestCase):
         data = request.call_args.args[1]
         self.assertEqual(json.loads(data["messages"][-1]["content"])["current_user_input"], "")
         self.assertNotIn("user", data["format"]["properties"]["basis"]["enum"])
+        self.assertNotIn("requested_story", data["format"]["properties"]["basis"]["enum"])
         messages[0]["_screen"] = "이미 반응한 화면"
         with patch.object(h, "request_json", return_value={"message": {"content": json.dumps(plan)}}) as request:
             h.plan_continuation(config, messages, 30)
@@ -459,7 +500,7 @@ class ConversationTests(unittest.TestCase):
         self.assertIn("이미 말한 정보를 다시 물었다", stream.call_args.args[1][-1]["content"])
 
     def test_user_requested_recall_is_not_blocked_as_repetition(self):
-        messages = [{"role": "system", "content": "하나"}, {"role": "assistant", "content": "모래라고 부를게"},
+        messages = [{"role": "system", "content": "하나", "_spoken_points": ["모래지."]}, {"role": "assistant", "content": "모래라고 부를게"},
                     {"role": "user", "content": "내 이름 뭐였지?"}]
         with patch.object(h, "stream_chat", return_value=[reply("모래지.")]):
             with patch.object(h, "review_reply", return_value={"issue": "repeated"}):
