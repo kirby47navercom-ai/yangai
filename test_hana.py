@@ -338,7 +338,7 @@ class ConversationTests(unittest.TestCase):
         memory = {"user_quotes": ["지는 건 싫어"], "broadcast_state": {"emotion": "신남", "stance": "연습판에서만 실험"}}
         messages = h.make_messages("PERSONA", memory, [{"role": "user", "content": "오늘은 공부 얘기하자"}], 16)
         messages.append({"role": "user", "content": "INTERNAL_EVENT", "_event": True})
-        plan = {"basis": "user", "user_constraint": "공부 이야기 요청", "action": "respond", "anchor": "공부 이야기", "new_point": "지금 배우는 개념 확인"}
+        plan = {"confirmation_quote": "", "premise_source": "none", "basis": "user", "user_constraint": "공부 이야기 요청", "action": "respond", "anchor": "공부 이야기", "new_point": "지금 배우는 개념 확인"}
         with patch.object(h, "request_json", return_value={"message": {"content": json.dumps(plan)}}) as request:
             result = h.plan_continuation(config, messages, 30, automatic=False)
         evidence = json.loads(request.call_args.args[1]["messages"][-1]["content"])
