@@ -234,13 +234,18 @@ def ensure_ollama(config: dict) -> subprocess.Popen | None:
     host = parsed.hostname or "127.0.0.1"
     if parsed.port:
         host += f":{parsed.port}"
+    env = {**os.environ, "OLLAMA_HOST": host}
+    # Leave GPU headroom for the voice model without reducing the context/output limits.
+    # Only our child server is configured; respect explicitly supplied environment values.
+    env.setdefault("OLLAMA_FLASH_ATTENTION", "1")
+    env.setdefault("OLLAMA_KV_CACHE_TYPE", "q8_0")
     process = subprocess.Popen(
         [str(executable), "serve"],
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-        env={**os.environ, "OLLAMA_HOST": host},
+        env=env,
     )
     deadline = time.monotonic() + 45
     while time.monotonic() < deadline:
@@ -942,11 +947,14 @@ class ScreenWatcher:
         self.capture_revision = 0
         self.request_lock = threading.Lock()
         self.request_active = threading.Event()
+        self.started_at = 0.0
+        self.request_started_at = 0.0
 
     def start(self) -> bool:
         if self.thread and self.thread.is_alive():
             return True
         self.stop_event.clear()
+        self.started_at = time.monotonic()
         self.last_error = ""
         self.last_observation = ""
         self.last_emit_at = 0.0
@@ -981,6 +989,7 @@ class ScreenWatcher:
 
     def set_capture_target(self, mode: str, window_title: str = "") -> None:
         self.capture_revision += 1
+        self.started_at = time.monotonic()
         self.config["screen_capture_mode"] = mode if mode in {"screen", "window"} else "screen"
         self.config["screen_window_title"] = window_title.strip()
         self.context.update("")
@@ -1076,6 +1085,7 @@ class ScreenWatcher:
                     if self.should_pause and self.should_pause():
                         self.stop_event.wait(0.2)
                         continue
+                    self.request_started_at = time.monotonic()
                     self.request_active.set()
                     try:
                         with self.request_lock:
@@ -1649,8 +1659,18 @@ def review_reply(config: dict, messages: list[dict], answer: str, automatic: boo
 
 def generate_reply(config: dict, messages: list[dict], recent_answers=(), control_text: str = "",
                    timeout: float = 180, num_predict: int | None = None, on_attempt=None,
-                   on_state=None, should_cancel=None) -> str:
+                   on_state=None, should_cancel=None, on_progress=None) -> str:
     """Regenerate with concrete feedback; never manufacture dialogue after model failure."""
+    deadline = time.monotonic() + timeout
+    def remaining() -> float:
+        seconds = deadline - time.monotonic()
+        if seconds <= 0:
+            raise TimeoutError(f"응답 전체 제한 {timeout:g}초를 넘겼어. 미검수 대사는 읽지 않았어.")
+        return seconds
+    def progress(stage: str, attempt: int) -> None:
+        remaining()
+        if on_progress:
+            on_progress(stage, attempt + 1)
     failures = []
     last_issue = ""
     needs_plan = config.get("local_decision_enabled", False) or (control_text and config.get("semantic_repeat_check", True))
@@ -1658,12 +1678,13 @@ def generate_reply(config: dict, messages: list[dict], recent_answers=(), contro
     for attempt in range(3):
         if should_cancel and should_cancel():
             return ""
+        progress("plan", attempt)
         if needs_plan and not control_text and last_issue in {"ungrounded", "missed_user"}:
             # The failed premise must not keep steering its own repair. The latest
             # user request and review feedback are enough to decide a direct response.
             plan = {"action": "respond", "basis": "user"}
         elif needs_plan:
-            plan = plan_continuation(config, messages, timeout, automatic=bool(control_text), rejected=failures[-2:])
+            plan = plan_continuation(config, messages, remaining(), automatic=bool(control_text), rejected=failures[-2:])
         if should_cancel and should_cancel():
             return ""
         if plan and plan.get("issue"):
@@ -1737,13 +1758,15 @@ def generate_reply(config: dict, messages: list[dict], recent_answers=(), contro
             attempt_messages.append({"role": "user", "content": feedback})
             controls += "\n" + feedback
         started = time.monotonic()
+        progress("speech", attempt)
         budget = (num_predict if num_predict is not None else config.get("num_predict", 384)) + 256
         pieces = []
-        stream = stream_chat(config, attempt_messages, num_predict=budget, timeout=timeout, output_format=REPLY_SCHEMA)
+        stream = stream_chat(config, attempt_messages, num_predict=budget, timeout=remaining(), output_format=REPLY_SCHEMA)
         try:
             for piece in stream:
                 if should_cancel and should_cancel():
                     return ""
+                remaining()
                 pieces.append(piece)
         finally:
             if hasattr(stream, "close"):
@@ -1770,11 +1793,13 @@ def generate_reply(config: dict, messages: list[dict], recent_answers=(), contro
             if review_messages and control_text and plan and plan.get("action") == "transition":
                 review_messages[0]["_topic_exhausted"] = any(
                     item["issue"] in {"repeated", "fiction_loop"} for item in failures)
-            review = review_reply(config, review_messages, answer, bool(control_text), timeout)
+            progress("review", attempt)
+            review = review_reply(config, review_messages, answer, bool(control_text), remaining())
             if review["issue"] != "none" and not (not control_text and review["issue"] in {"repeated", "topic_jump"}):
                 reason = review["issue"]
         if should_cancel and should_cancel():
             return ""
+        remaining()
         if on_attempt:
             on_attempt({"attempt": attempt + 1, "reason": reason,
                         "seconds": round(time.monotonic() - started, 3), "candidate": full, "plan": plan, "review": review})
@@ -1815,6 +1840,7 @@ def stream_chat(
     timeout: float = 180,
     output_format: dict | None = None,
 ):
+    deadline = time.monotonic() + timeout
     payload = {
         "model": config["model"],
         "messages": [{key: value for key, value in item.items() if not key.startswith("_")} for item in messages],
@@ -1846,7 +1872,17 @@ def stream_chat(
         raise RuntimeError("Ollama가 실행 중이 아니야. 먼저 Ollama를 켜줘.") from error
 
     with response:
-        for raw_line in response:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("대사 생성의 전체 대기 시간을 넘겼어.")
+            # A socket timeout alone restarts at every token; constrain the next read too.
+            sock = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)
+            if sock is not None:
+                sock.settimeout(remaining)
+            raw_line = response.readline()
+            if not raw_line:
+                break
             if not raw_line.strip():
                 continue
             item = json.loads(raw_line.decode("utf-8"))
@@ -1882,7 +1918,7 @@ def one_shot(
     }
     result = request_json(config["ollama_url"].rstrip("/") + "/api/chat", payload, timeout=timeout)
     content = result.get("message", {}).get("content", "").strip()
-    if images and not content:
+    if images and not any(char.isalnum() for char in content):
         raise RuntimeError("화면 모델이 최종 관찰 내용을 반환하지 않았어.")
     return content
 

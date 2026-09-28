@@ -66,6 +66,7 @@ class ConversationTests(unittest.TestCase):
         app.recent_auto_answers = []
         app.memory = {}
         app.last_user_activity_at = 0.0
+        app._runtime_log = lambda message: None
         app.root = SimpleNamespace(after=lambda delay, callback: callback())
         lines, spoken = [], []
         app._line = lambda who, text, tag: lines.append(text)

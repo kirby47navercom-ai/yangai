@@ -88,10 +88,11 @@ class InputTests(unittest.TestCase):
 
     def test_initial_idle_waits_for_screen_and_pending_screen_wins(self):
         app = a.HanaApp.__new__(a.HanaApp)
+        app.config = {"vision_response_timeout": 30}
         app.last_user_activity_at = 0
         app.last_idle_requested_at = 1
         app.pending_screen = True
-        app.watcher = SimpleNamespace(running=lambda: True, last_error="")
+        app.watcher = SimpleNamespace(running=lambda: True, last_error="", started_at=time.monotonic())
         app.screen_context = h.ScreenContext()
         calls = []
         app._answer_broadcast = calls.append

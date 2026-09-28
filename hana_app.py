@@ -186,6 +186,9 @@ class HanaApp:
                 self.history = previous_history
                 save_memory_snapshot(self.memory, previous_history)
         self.user_turns = sum(1 for item in self.history if item["role"] == "user")
+        self.session_history_start = len(self.history)
+        self.generation_status = ""
+        self.generation_started_at = 0.0
         self.stop_event = threading.Event()
         self.chat_busy = threading.Event()
         self.chat_queue: queue.Queue[tuple[str, str]] = queue.Queue()
@@ -442,6 +445,8 @@ class HanaApp:
                 continue
             try:
                 self.chat_busy.set()
+                self.generation_status = "진행 중인 화면 분석 대기"
+                self.generation_started_at = time.monotonic()
                 self.watcher.wait_for_request(float(self.config.get("vision_response_timeout", 30)) + 1)
                 if kind == "user":
                     self._answer_user(payload)
@@ -457,6 +462,7 @@ class HanaApp:
                 self.root.after(0, lambda error=error: self._system(f"응답을 만들 수 없어: {error}"))
             finally:
                 self.chat_busy.clear()
+                self.generation_status = ""
 
     def _answer_user(self, text: str) -> None:
         turn_started_at = time.monotonic()
@@ -498,11 +504,16 @@ class HanaApp:
             return
         # A new capture target/first startup must get a chance to provide evidence before idle fiction.
         if self.watcher.running() and not self.screen_context.prompt() and not self.watcher.last_error:
-            return
+            wait_limit = float(self.config.get("vision_response_timeout", 30)) + 1
+            if time.monotonic() - self.watcher.started_at < wait_limit:
+                return
         self._answer_broadcast("screen" if self.pending_screen and self.screen_context.prompt() else "idle")
 
     def _answer_broadcast(self, kind: str) -> None:
-        messages = make_messages(self.prompt, self.memory, self.history,
+        # Previous sessions remain available to memory/explicit questions, not as a new live exchange.
+        current_history = self.history[getattr(self, "session_history_start", 0):]
+        memory = self.memory if current_history else {**self.memory, "broadcast_state": {}}
+        messages = make_messages(self.prompt, memory, current_history,
                                  int(self.config["recent_messages"]), self.screen_context.prompt())
         messages[0]["_screen_pending"] = kind == "screen"
         screen_event_id = self.screen_event_id
@@ -530,7 +541,7 @@ class HanaApp:
 
     def _stream_and_speak(
         self, messages: list[dict], num_predict: int | None = None,
-        timeout: float = 180, control_text: str = "", avoid_repetition: bool = False,
+        timeout: float = 45, control_text: str = "", avoid_repetition: bool = False,
         recent_answers: list[str] | None = None,
     ) -> str:
         state = {}
@@ -544,12 +555,21 @@ class HanaApp:
             append_jsonl(DATA_DIR / "generation.jsonl", {**event, "created_at": now(),
                           "model": self.config["model"], "automatic": avoid_repetition,
                           "screen": messages[0].get("_screen", "") if messages else ""})
-        answer = generate_reply(
-            self.config, messages, (recent_answers or ()) if avoid_repetition else (),
-            control_text, timeout, num_predict, record_attempt,
-            on_state=state.update,
-            should_cancel=cancelled,
-        )
+        def progress(stage: str, attempt: int) -> None:
+            label = {"plan": "대화 판단", "speech": "대사 생성", "review": "대사 검수"}[stage]
+            self.generation_status = f"{label} · 시도 {attempt}/3"
+            self._runtime_log(f"generation {stage}, attempt {attempt}, elapsed {time.monotonic() - started_at:.1f}s")
+        self.generation_started_at = time.monotonic()
+        try:
+            answer = generate_reply(
+                self.config, messages, (recent_answers or ()) if avoid_repetition else (),
+                control_text, timeout, num_predict, record_attempt,
+                on_state=state.update,
+                should_cancel=cancelled,
+                on_progress=progress,
+            )
+        finally:
+            self.generation_status = ""
         if not answer or cancelled():
             return ""
         apply_reply_state(self.memory, state)
@@ -703,11 +723,22 @@ class HanaApp:
             parts.append("화면")
         if self.tts and self.tts.enabled:
             parts.append("음성")
-        self.status.configure(text=self.tts_status or " · ".join(parts) or "대기 중")
+        generation = self.generation_status
+        if generation:
+            generation += f" · {int(time.monotonic() - self.generation_started_at)}초"
+        self.status.configure(text=generation or self.tts_status or " · ".join(parts) or "대기 중")
         screen = self.screen_context.prompt()
         age = max(0, int(time.monotonic() - self.screen_context.updated_at))
-        screen_status = (f"{age}초 전: {screen[:110]}" if screen else
-                         self.watcher.last_error or ("첫 관찰 대기" if self.watcher.running() else "꺼짐"))
+        if screen:
+            screen_status = f"{age}초 전: {screen[:110]}"
+        elif self.watcher.last_error:
+            screen_status = self.watcher.last_error
+        elif self.watcher.request_active.is_set():
+            screen_status = f"분석 중 · {int(time.monotonic() - self.watcher.request_started_at)}초"
+        elif self.chat_busy.is_set():
+            screen_status = "대사 처리 중 · 화면 분석 잠시 대기"
+        else:
+            screen_status = "새 관찰 대기" if self.watcher.running() else "꺼짐"
         self.sensors.configure(text=f"마이크: {self.mic.status} · 입력 {self.mic.level:.3f}\n화면: {screen_status}")
         if not self.stop_event.is_set():
             self.root.after(1000, self._update_buttons)
