@@ -331,47 +331,47 @@
 	"Parts": [
 		{
 			"Id": "Part1",
-			"Name": "01_Tail"
+			"Name": "15_Eye_VR"
 		},
 		{
 			"Id": "Part2",
-			"Name": "02_Legs"
+			"Name": "15_Eye_VL"
 		},
 		{
 			"Id": "Part3",
-			"Name": "03_Boots"
+			"Name": "14_FrontHair"
 		},
 		{
 			"Id": "Part4",
-			"Name": "05_Sleeves"
+			"Name": "17_Bow"
 		},
 		{
 			"Id": "Part5",
-			"Name": "06_Hands"
+			"Name": "19_HairClips"
 		},
 		{
 			"Id": "Part6",
-			"Name": "07_Cuffs"
+			"Name": "16_FaceDetails"
 		},
 		{
 			"Id": "Part7",
-			"Name": "04_Skirt"
+			"Name": "15_Eyes"
 		},
 		{
 			"Id": "Part8",
-			"Name": "08_Torso"
+			"Name": "13_Face"
 		},
 		{
 			"Id": "Part9",
-			"Name": "09_Jacket"
+			"Name": "18_ArmDetails"
 		},
 		{
 			"Id": "Part10",
-			"Name": "12_Hair"
+			"Name": "21_SkirtDecor"
 		},
 		{
 			"Id": "Part11",
-			"Name": "10_Cape"
+			"Name": "20_Hardware"
 		},
 		{
 			"Id": "Part12",
@@ -379,429 +379,429 @@
 		},
 		{
 			"Id": "Part13",
-			"Name": "20_Hardware"
+			"Name": "10_Cape"
 		},
 		{
 			"Id": "Part14",
-			"Name": "21_SkirtDecor"
+			"Name": "12_Hair"
 		},
 		{
 			"Id": "Part15",
-			"Name": "18_ArmDetails"
+			"Name": "09_Jacket"
 		},
 		{
 			"Id": "Part16",
-			"Name": "13_Face"
+			"Name": "08_Torso"
 		},
 		{
 			"Id": "Part17",
-			"Name": "15_Eyes"
+			"Name": "04_Skirt"
 		},
 		{
 			"Id": "Part18",
-			"Name": "16_FaceDetails"
+			"Name": "07_Cuffs"
 		},
 		{
 			"Id": "Part19",
-			"Name": "19_HairClips"
+			"Name": "06_Hands"
 		},
 		{
 			"Id": "Part20",
-			"Name": "17_Bow"
+			"Name": "05_Sleeves"
 		},
 		{
 			"Id": "Part21",
-			"Name": "14_FrontHair"
+			"Name": "03_Boots"
 		},
 		{
 			"Id": "Part22",
-			"Name": "15_Eye_VL"
+			"Name": "02_Legs"
 		},
 		{
 			"Id": "Part23",
-			"Name": "15_Eye_VR"
+			"Name": "01_Tail"
 		}
 	],
 	"Drawables": [
 		{
 			"Id": "ArtMesh1",
-			"Name": "Tail_Root"
+			"Name": "Eye_VR_UpperLid"
 		},
 		{
 			"Id": "ArtMesh2",
-			"Name": "Tail_LowerArc"
+			"Name": "Eye_VR_LowerLid"
 		},
 		{
 			"Id": "ArtMesh3",
-			"Name": "Tail_RisingArc"
+			"Name": "Eye_VR_UpperLashes"
 		},
 		{
 			"Id": "ArtMesh4",
-			"Name": "Tail_TipWithTransition"
+			"Name": "Eye_VR_OuterCorner"
 		},
 		{
 			"Id": "ArtMesh5",
-			"Name": "Leg_VL_Upper"
+			"Name": "Eye_VR_LowerReflection"
 		},
 		{
 			"Id": "ArtMesh6",
-			"Name": "Leg_VR_Upper"
+			"Name": "Eye_VR_Catchlight"
 		},
 		{
 			"Id": "ArtMesh7",
-			"Name": "Leg_VL_Lower"
+			"Name": "Eye_VR_Pupil"
 		},
 		{
 			"Id": "ArtMesh8",
-			"Name": "Leg_VR_Lower"
+			"Name": "Eye_VR_Iris_UpperShade"
 		},
 		{
 			"Id": "ArtMesh9",
-			"Name": "Leg_VL_Opening"
+			"Name": "Eye_VR_Iris"
 		},
 		{
 			"Id": "ArtMesh10",
-			"Name": "Leg_VR_Opening"
+			"Name": "Eye_VR_Sclera"
 		},
 		{
 			"Id": "ArtMesh11",
-			"Name": "Boot_VL_Main"
+			"Name": "Eye_VL_UpperLid"
 		},
 		{
 			"Id": "ArtMesh12",
-			"Name": "Boot_VR_Main"
+			"Name": "Eye_VL_LowerLid"
 		},
 		{
 			"Id": "ArtMesh13",
-			"Name": "Boot_VL_Sole"
+			"Name": "Eye_VL_UpperLashes"
 		},
 		{
 			"Id": "ArtMesh14",
-			"Name": "Boot_VR_Sole"
+			"Name": "Eye_VL_OuterCorner"
 		},
 		{
 			"Id": "ArtMesh15",
-			"Name": "Boot_VL_Toe"
+			"Name": "Eye_VL_Catchlight"
 		},
 		{
 			"Id": "ArtMesh16",
-			"Name": "Boot_VR_Toe"
+			"Name": "Eye_VL_Pupil"
 		},
 		{
 			"Id": "ArtMesh17",
-			"Name": "Boot_VL_UpperStrap"
+			"Name": "Eye_VL_Iris_UpperShade"
 		},
 		{
 			"Id": "ArtMesh18",
-			"Name": "Boot_VL_LowerStrap"
+			"Name": "Eye_VL_Iris"
 		},
 		{
 			"Id": "ArtMesh19",
-			"Name": "Boot_VR_UpperStrap"
+			"Name": "Eye_VL_Sclera"
 		},
 		{
 			"Id": "ArtMesh20",
-			"Name": "Boot_VR_LowerStrap"
+			"Name": "Forelock_Blue_TipLower"
 		},
 		{
 			"Id": "ArtMesh21",
-			"Name": "Sleeve_VL_Main"
+			"Name": "Forelock_Blue_TipMiddle"
 		},
 		{
 			"Id": "ArtMesh22",
-			"Name": "Sleeve_VR_Main"
+			"Name": "Forelock_Blue_TipUpper"
 		},
 		{
 			"Id": "ArtMesh23",
-			"Name": "Sleeve_VL_Lower"
+			"Name": "Hair_Ahoge"
 		},
 		{
 			"Id": "ArtMesh24",
-			"Name": "Sleeve_VR_Lower"
+			"Name": "Forelock_Blue"
 		},
 		{
 			"Id": "ArtMesh25",
-			"Name": "Hand_VL"
+			"Name": "Forelock_Red"
 		},
 		{
 			"Id": "ArtMesh26",
-			"Name": "Hand_VR"
+			"Name": "Hair_VR_CheekLower"
 		},
 		{
 			"Id": "ArtMesh27",
-			"Name": "Cuff_VL"
+			"Name": "Hair_VR_CheekMiddle"
 		},
 		{
 			"Id": "ArtMesh28",
-			"Name": "Cuff_VR"
+			"Name": "Hair_VR_CheekUpper"
 		},
 		{
 			"Id": "ArtMesh29",
-			"Name": "Skirt_Center"
+			"Name": "Hair_VR_InnerBang"
 		},
 		{
 			"Id": "ArtMesh30",
-			"Name": "Skirt_VL_Outer"
+			"Name": "Hair_VR_Outer"
 		},
 		{
 			"Id": "ArtMesh31",
-			"Name": "Skirt_VR_Outer"
+			"Name": "Hair_VL_CheekLower"
 		},
 		{
 			"Id": "ArtMesh32",
-			"Name": "Skirt_VL_Panel"
+			"Name": "Hair_VL_CheekMiddle"
 		},
 		{
 			"Id": "ArtMesh33",
-			"Name": "Skirt_VR_Panel"
+			"Name": "Hair_VL_CheekUpper"
 		},
 		{
 			"Id": "ArtMesh34",
-			"Name": "Skirt_VL_RedInset"
+			"Name": "Hair_VL_InnerBang"
 		},
 		{
 			"Id": "ArtMesh35",
-			"Name": "Skirt_VR_BlueInset"
+			"Name": "Hair_VL_Outer"
 		},
 		{
 			"Id": "ArtMesh36",
-			"Name": "Skirt_VL_FrontPiping"
+			"Name": "Bow_Brooch"
 		},
 		{
 			"Id": "ArtMesh37",
-			"Name": "Skirt_VR_FrontPiping"
+			"Name": "Bow_VR"
 		},
 		{
 			"Id": "ArtMesh38",
-			"Name": "Inner_Bodice"
+			"Name": "Bow_VL"
 		},
 		{
 			"Id": "ArtMesh39",
-			"Name": "Waist_Corset"
+			"Name": "HairClip_VR"
 		},
 		{
 			"Id": "ArtMesh40",
-			"Name": "Waist_UpperBelt"
+			"Name": "HairClip_VL"
 		},
 		{
 			"Id": "ArtMesh41",
-			"Name": "Waist_LowerBelt"
+			"Name": "Nose"
 		},
 		{
 			"Id": "ArtMesh42",
-			"Name": "Necktie"
+			"Name": "Mouth"
 		},
 		{
 			"Id": "ArtMesh43",
-			"Name": "Necktie_WhiteBand"
+			"Name": "Brow_VR"
 		},
 		{
 			"Id": "ArtMesh44",
-			"Name": "Necktie_BlueBand"
+			"Name": "Brow_VL"
 		},
 		{
 			"Id": "ArtMesh45",
-			"Name": "Necktie_RedBand"
+			"Name": "Neck"
 		},
 		{
 			"Id": "ArtMesh46",
-			"Name": "Jacket_VL"
+			"Name": "Face"
 		},
 		{
 			"Id": "ArtMesh47",
-			"Name": "Jacket_VR"
+			"Name": "Sleeve_VR_Ribbon"
 		},
 		{
 			"Id": "ArtMesh48",
-			"Name": "Jacket_VL_InsideHem"
+			"Name": "Sleeve_VL_Ribbon"
 		},
 		{
 			"Id": "ArtMesh49",
-			"Name": "Jacket_VR_InsideHem"
+			"Name": "Sleeve_VR_Tassel"
 		},
 		{
 			"Id": "ArtMesh50",
-			"Name": "Jacket_VL_Pocket"
+			"Name": "Sleeve_VL_Tassel"
 		},
 		{
 			"Id": "ArtMesh51",
-			"Name": "Jacket_VR_Pocket"
+			"Name": "SleeveFlap_VR"
 		},
 		{
 			"Id": "ArtMesh52",
-			"Name": "Jacket_VL_PocketFlap"
+			"Name": "SleeveFlap_VL"
 		},
 		{
 			"Id": "ArtMesh53",
-			"Name": "Jacket_VR_PocketFlap"
+			"Name": "SleevePocket_VR"
 		},
 		{
 			"Id": "ArtMesh54",
-			"Name": "Hair_CrownBack"
+			"Name": "SleevePocket_VL"
 		},
 		{
 			"Id": "ArtMesh55",
-			"Name": "Pony_VL"
+			"Name": "Shoulder_VR_RedStrap"
 		},
 		{
 			"Id": "ArtMesh56",
-			"Name": "Pony_VR"
+			"Name": "Shoulder_VL_RedStrap"
 		},
 		{
 			"Id": "ArtMesh57",
-			"Name": "Pony_VL_White_Outer"
+			"Name": "ArmBand_VR"
 		},
 		{
 			"Id": "ArtMesh58",
-			"Name": "Pony_VL_White_Middle"
+			"Name": "ArmBand_VL"
 		},
 		{
 			"Id": "ArtMesh59",
-			"Name": "Pony_VL_White_Lower"
+			"Name": "Hip_VR_RedLoop"
 		},
 		{
 			"Id": "ArtMesh60",
-			"Name": "Pony_VL_Red_OuterCurl"
+			"Name": "Hip_VL_RedLoop"
 		},
 		{
 			"Id": "ArtMesh61",
-			"Name": "Pony_VL_Red_MiddleCurl"
+			"Name": "Pendant_VR_Drop"
 		},
 		{
 			"Id": "ArtMesh62",
-			"Name": "Pony_VL_Red_BottomCurl"
+			"Name": "Pendant_VR_Flower"
 		},
 		{
 			"Id": "ArtMesh63",
-			"Name": "Pony_VR_White_Outer"
+			"Name": "Pendant_VR_Cord"
 		},
 		{
 			"Id": "ArtMesh64",
-			"Name": "Pony_VR_White_Middle"
+			"Name": "Pendant_VL_Drop"
 		},
 		{
 			"Id": "ArtMesh65",
-			"Name": "Pony_VR_White_Curl"
+			"Name": "Pendant_VL_Flower"
 		},
 		{
 			"Id": "ArtMesh66",
-			"Name": "Pony_VR_Blue_OuterCurl"
+			"Name": "Pendant_VL_Cord"
 		},
 		{
 			"Id": "ArtMesh67",
-			"Name": "Pony_VR_Blue_MiddleCurl"
+			"Name": "Skirt_Emblem_6"
 		},
 		{
 			"Id": "ArtMesh68",
-			"Name": "Pony_VR_Blue_BottomCurl"
+			"Name": "Skirt_Emblem_5"
 		},
 		{
 			"Id": "ArtMesh69",
-			"Name": "Cape_VL"
+			"Name": "Skirt_Emblem_4"
 		},
 		{
 			"Id": "ArtMesh70",
-			"Name": "Cape_VR"
+			"Name": "Skirt_Emblem_3"
 		},
 		{
 			"Id": "ArtMesh71",
-			"Name": "Cape_VL_Cord"
+			"Name": "Skirt_Emblem_2"
 		},
 		{
 			"Id": "ArtMesh72",
-			"Name": "Collar"
+			"Name": "Skirt_Emblem_1"
 		},
 		{
 			"Id": "ArtMesh73",
-			"Name": "Boot_VL_UpperGem"
+			"Name": "Cape_VR_Clasp"
 		},
 		{
 			"Id": "ArtMesh74",
-			"Name": "Boot_VL_LowerGem"
+			"Name": "Cape_VL_Pin"
 		},
 		{
 			"Id": "ArtMesh75",
-			"Name": "Boot_VR_UpperGem"
+			"Name": "Cuff_VR_LowerButton"
 		},
 		{
 			"Id": "ArtMesh76",
-			"Name": "Boot_VR_LowerGem"
+			"Name": "Cuff_VR_UpperButton"
 		},
 		{
 			"Id": "ArtMesh77",
-			"Name": "Boot_VL_Flower"
+			"Name": "Cuff_VL_LowerButton"
 		},
 		{
 			"Id": "ArtMesh78",
-			"Name": "Boot_VR_Flower"
+			"Name": "Cuff_VL_UpperButton"
 		},
 		{
 			"Id": "ArtMesh79",
-			"Name": "Boot_VL_Tassel"
+			"Name": "SleeveGem_VR_Gold"
 		},
 		{
 			"Id": "ArtMesh80",
-			"Name": "Boot_VR_Tassel"
+			"Name": "SleeveGem_VR_Red"
 		},
 		{
 			"Id": "ArtMesh81",
-			"Name": "Hip_VL_Ring"
+			"Name": "SleeveGem_VR_Blue"
 		},
 		{
 			"Id": "ArtMesh82",
-			"Name": "Hip_VL_Chain"
+			"Name": "SleeveGem_VL_Gold"
 		},
 		{
 			"Id": "ArtMesh83",
-			"Name": "Hip_VR_Ring"
+			"Name": "SleeveGem_VL_Red"
 		},
 		{
 			"Id": "ArtMesh84",
-			"Name": "Hip_VR_Chain"
+			"Name": "SleeveGem_VL_Blue"
 		},
 		{
 			"Id": "ArtMesh85",
-			"Name": "Hip_VL_Clasp"
+			"Name": "Sleeve_VR_Coin"
 		},
 		{
 			"Id": "ArtMesh86",
-			"Name": "Hip_VR_Clasp"
+			"Name": "Sleeve_VL_Coin"
 		},
 		{
 			"Id": "ArtMesh87",
-			"Name": "Waist_Button_1"
+			"Name": "Sleeve_VR_Medallion"
 		},
 		{
 			"Id": "ArtMesh88",
-			"Name": "Waist_Button_2"
+			"Name": "Sleeve_VL_Medallion"
 		},
 		{
 			"Id": "ArtMesh89",
-			"Name": "Waist_Button_3"
+			"Name": "Sleeve_VR_Cord"
 		},
 		{
 			"Id": "ArtMesh90",
-			"Name": "Waist_Button_4"
+			"Name": "Sleeve_VL_Cord"
 		},
 		{
 			"Id": "ArtMesh91",
-			"Name": "Jacket_VL_Zip"
+			"Name": "ArmBand_VR_Gem"
 		},
 		{
 			"Id": "ArtMesh92",
-			"Name": "Jacket_VR_Zip"
+			"Name": "ArmBand_VL_Gem"
 		},
 		{
 			"Id": "ArtMesh93",
-			"Name": "Jacket_VL_Cord"
+			"Name": "Shoulder_VR_Buckle"
 		},
 		{
 			"Id": "ArtMesh94",
-			"Name": "Jacket_VR_Cord"
+			"Name": "Shoulder_VL_Buckle"
 		},
 		{
 			"Id": "ArtMesh95",
-			"Name": "Jacket_VL_Badge"
+			"Name": "Chest_Brooch"
 		},
 		{
 			"Id": "ArtMesh96",
@@ -809,383 +809,383 @@
 		},
 		{
 			"Id": "ArtMesh97",
-			"Name": "Chest_Brooch"
+			"Name": "Jacket_VL_Badge"
 		},
 		{
 			"Id": "ArtMesh98",
-			"Name": "Shoulder_VL_Buckle"
+			"Name": "Jacket_VR_Cord"
 		},
 		{
 			"Id": "ArtMesh99",
-			"Name": "Shoulder_VR_Buckle"
+			"Name": "Jacket_VL_Cord"
 		},
 		{
 			"Id": "ArtMesh100",
-			"Name": "ArmBand_VL_Gem"
+			"Name": "Jacket_VR_Zip"
 		},
 		{
 			"Id": "ArtMesh101",
-			"Name": "ArmBand_VR_Gem"
+			"Name": "Jacket_VL_Zip"
 		},
 		{
 			"Id": "ArtMesh102",
-			"Name": "Sleeve_VL_Cord"
+			"Name": "Waist_Button_4"
 		},
 		{
 			"Id": "ArtMesh103",
-			"Name": "Sleeve_VR_Cord"
+			"Name": "Waist_Button_3"
 		},
 		{
 			"Id": "ArtMesh104",
-			"Name": "Sleeve_VL_Medallion"
+			"Name": "Waist_Button_2"
 		},
 		{
 			"Id": "ArtMesh105",
-			"Name": "Sleeve_VR_Medallion"
+			"Name": "Waist_Button_1"
 		},
 		{
 			"Id": "ArtMesh106",
-			"Name": "Sleeve_VL_Coin"
+			"Name": "Hip_VR_Clasp"
 		},
 		{
 			"Id": "ArtMesh107",
-			"Name": "Sleeve_VR_Coin"
+			"Name": "Hip_VL_Clasp"
 		},
 		{
 			"Id": "ArtMesh108",
-			"Name": "SleeveGem_VL_Blue"
+			"Name": "Hip_VR_Chain"
 		},
 		{
 			"Id": "ArtMesh109",
-			"Name": "SleeveGem_VL_Red"
+			"Name": "Hip_VR_Ring"
 		},
 		{
 			"Id": "ArtMesh110",
-			"Name": "SleeveGem_VL_Gold"
+			"Name": "Hip_VL_Chain"
 		},
 		{
 			"Id": "ArtMesh111",
-			"Name": "SleeveGem_VR_Blue"
+			"Name": "Hip_VL_Ring"
 		},
 		{
 			"Id": "ArtMesh112",
-			"Name": "SleeveGem_VR_Red"
+			"Name": "Boot_VR_Tassel"
 		},
 		{
 			"Id": "ArtMesh113",
-			"Name": "SleeveGem_VR_Gold"
+			"Name": "Boot_VL_Tassel"
 		},
 		{
 			"Id": "ArtMesh114",
-			"Name": "Cuff_VL_UpperButton"
+			"Name": "Boot_VR_Flower"
 		},
 		{
 			"Id": "ArtMesh115",
-			"Name": "Cuff_VL_LowerButton"
+			"Name": "Boot_VL_Flower"
 		},
 		{
 			"Id": "ArtMesh116",
-			"Name": "Cuff_VR_UpperButton"
+			"Name": "Boot_VR_LowerGem"
 		},
 		{
 			"Id": "ArtMesh117",
-			"Name": "Cuff_VR_LowerButton"
+			"Name": "Boot_VR_UpperGem"
 		},
 		{
 			"Id": "ArtMesh118",
-			"Name": "Cape_VL_Pin"
+			"Name": "Boot_VL_LowerGem"
 		},
 		{
 			"Id": "ArtMesh119",
-			"Name": "Cape_VR_Clasp"
+			"Name": "Boot_VL_UpperGem"
 		},
 		{
 			"Id": "ArtMesh120",
-			"Name": "Skirt_Emblem_1"
+			"Name": "Collar"
 		},
 		{
 			"Id": "ArtMesh121",
-			"Name": "Skirt_Emblem_2"
+			"Name": "Cape_VL_Cord"
 		},
 		{
 			"Id": "ArtMesh122",
-			"Name": "Skirt_Emblem_3"
+			"Name": "Cape_VR"
 		},
 		{
 			"Id": "ArtMesh123",
-			"Name": "Skirt_Emblem_4"
+			"Name": "Cape_VL"
 		},
 		{
 			"Id": "ArtMesh124",
-			"Name": "Skirt_Emblem_5"
+			"Name": "Pony_VR_Blue_BottomCurl"
 		},
 		{
 			"Id": "ArtMesh125",
-			"Name": "Skirt_Emblem_6"
+			"Name": "Pony_VR_Blue_MiddleCurl"
 		},
 		{
 			"Id": "ArtMesh126",
-			"Name": "Pendant_VL_Cord"
+			"Name": "Pony_VR_Blue_OuterCurl"
 		},
 		{
 			"Id": "ArtMesh127",
-			"Name": "Pendant_VL_Flower"
+			"Name": "Pony_VR_White_Curl"
 		},
 		{
 			"Id": "ArtMesh128",
-			"Name": "Pendant_VL_Drop"
+			"Name": "Pony_VR_White_Middle"
 		},
 		{
 			"Id": "ArtMesh129",
-			"Name": "Pendant_VR_Cord"
+			"Name": "Pony_VR_White_Outer"
 		},
 		{
 			"Id": "ArtMesh130",
-			"Name": "Pendant_VR_Flower"
+			"Name": "Pony_VL_Red_BottomCurl"
 		},
 		{
 			"Id": "ArtMesh131",
-			"Name": "Pendant_VR_Drop"
+			"Name": "Pony_VL_Red_MiddleCurl"
 		},
 		{
 			"Id": "ArtMesh132",
-			"Name": "Hip_VL_RedLoop"
+			"Name": "Pony_VL_Red_OuterCurl"
 		},
 		{
 			"Id": "ArtMesh133",
-			"Name": "Hip_VR_RedLoop"
+			"Name": "Pony_VL_White_Lower"
 		},
 		{
 			"Id": "ArtMesh134",
-			"Name": "ArmBand_VL"
+			"Name": "Pony_VL_White_Middle"
 		},
 		{
 			"Id": "ArtMesh135",
-			"Name": "ArmBand_VR"
+			"Name": "Pony_VL_White_Outer"
 		},
 		{
 			"Id": "ArtMesh136",
-			"Name": "Shoulder_VL_RedStrap"
+			"Name": "Pony_VR"
 		},
 		{
 			"Id": "ArtMesh137",
-			"Name": "Shoulder_VR_RedStrap"
+			"Name": "Pony_VL"
 		},
 		{
 			"Id": "ArtMesh138",
-			"Name": "SleevePocket_VL"
+			"Name": "Hair_CrownBack"
 		},
 		{
 			"Id": "ArtMesh139",
-			"Name": "SleevePocket_VR"
+			"Name": "Jacket_VR_PocketFlap"
 		},
 		{
 			"Id": "ArtMesh140",
-			"Name": "SleeveFlap_VL"
+			"Name": "Jacket_VL_PocketFlap"
 		},
 		{
 			"Id": "ArtMesh141",
-			"Name": "SleeveFlap_VR"
+			"Name": "Jacket_VR_Pocket"
 		},
 		{
 			"Id": "ArtMesh142",
-			"Name": "Sleeve_VL_Tassel"
+			"Name": "Jacket_VL_Pocket"
 		},
 		{
 			"Id": "ArtMesh143",
-			"Name": "Sleeve_VR_Tassel"
+			"Name": "Jacket_VR_InsideHem"
 		},
 		{
 			"Id": "ArtMesh144",
-			"Name": "Sleeve_VL_Ribbon"
+			"Name": "Jacket_VL_InsideHem"
 		},
 		{
 			"Id": "ArtMesh145",
-			"Name": "Sleeve_VR_Ribbon"
+			"Name": "Jacket_VR"
 		},
 		{
 			"Id": "ArtMesh146",
-			"Name": "Face"
+			"Name": "Jacket_VL"
 		},
 		{
 			"Id": "ArtMesh147",
-			"Name": "Neck"
+			"Name": "Necktie_RedBand"
 		},
 		{
 			"Id": "ArtMesh148",
-			"Name": "Brow_VL"
+			"Name": "Necktie_BlueBand"
 		},
 		{
 			"Id": "ArtMesh149",
-			"Name": "Brow_VR"
+			"Name": "Necktie_WhiteBand"
 		},
 		{
 			"Id": "ArtMesh150",
-			"Name": "Mouth"
+			"Name": "Necktie"
 		},
 		{
 			"Id": "ArtMesh151",
-			"Name": "Nose"
+			"Name": "Waist_LowerBelt"
 		},
 		{
 			"Id": "ArtMesh152",
-			"Name": "HairClip_VL"
+			"Name": "Waist_UpperBelt"
 		},
 		{
 			"Id": "ArtMesh153",
-			"Name": "HairClip_VR"
+			"Name": "Waist_Corset"
 		},
 		{
 			"Id": "ArtMesh154",
-			"Name": "Bow_VL"
+			"Name": "Inner_Bodice"
 		},
 		{
 			"Id": "ArtMesh155",
-			"Name": "Bow_VR"
+			"Name": "Skirt_VR_FrontPiping"
 		},
 		{
 			"Id": "ArtMesh156",
-			"Name": "Bow_Brooch"
+			"Name": "Skirt_VL_FrontPiping"
 		},
 		{
 			"Id": "ArtMesh157",
-			"Name": "Hair_VL_Outer"
+			"Name": "Skirt_VR_BlueInset"
 		},
 		{
 			"Id": "ArtMesh158",
-			"Name": "Hair_VL_InnerBang"
+			"Name": "Skirt_VL_RedInset"
 		},
 		{
 			"Id": "ArtMesh159",
-			"Name": "Hair_VL_CheekUpper"
+			"Name": "Skirt_VR_Panel"
 		},
 		{
 			"Id": "ArtMesh160",
-			"Name": "Hair_VL_CheekMiddle"
+			"Name": "Skirt_VL_Panel"
 		},
 		{
 			"Id": "ArtMesh161",
-			"Name": "Hair_VL_CheekLower"
+			"Name": "Skirt_VR_Outer"
 		},
 		{
 			"Id": "ArtMesh162",
-			"Name": "Hair_VR_Outer"
+			"Name": "Skirt_VL_Outer"
 		},
 		{
 			"Id": "ArtMesh163",
-			"Name": "Hair_VR_InnerBang"
+			"Name": "Skirt_Center"
 		},
 		{
 			"Id": "ArtMesh164",
-			"Name": "Hair_VR_CheekUpper"
+			"Name": "Cuff_VR"
 		},
 		{
 			"Id": "ArtMesh165",
-			"Name": "Hair_VR_CheekMiddle"
+			"Name": "Cuff_VL"
 		},
 		{
 			"Id": "ArtMesh166",
-			"Name": "Hair_VR_CheekLower"
+			"Name": "Hand_VR"
 		},
 		{
 			"Id": "ArtMesh167",
-			"Name": "Forelock_Red"
+			"Name": "Hand_VL"
 		},
 		{
 			"Id": "ArtMesh168",
-			"Name": "Forelock_Blue"
+			"Name": "Sleeve_VR_Lower"
 		},
 		{
 			"Id": "ArtMesh169",
-			"Name": "Hair_Ahoge"
+			"Name": "Sleeve_VL_Lower"
 		},
 		{
 			"Id": "ArtMesh170",
-			"Name": "Forelock_Blue_TipUpper"
+			"Name": "Sleeve_VR_Main"
 		},
 		{
 			"Id": "ArtMesh171",
-			"Name": "Forelock_Blue_TipMiddle"
+			"Name": "Sleeve_VL_Main"
 		},
 		{
 			"Id": "ArtMesh172",
-			"Name": "Forelock_Blue_TipLower"
+			"Name": "Boot_VR_LowerStrap"
 		},
 		{
 			"Id": "ArtMesh173",
-			"Name": "Eye_VL_Sclera"
+			"Name": "Boot_VR_UpperStrap"
 		},
 		{
 			"Id": "ArtMesh174",
-			"Name": "Eye_VL_Iris"
+			"Name": "Boot_VL_LowerStrap"
 		},
 		{
 			"Id": "ArtMesh175",
-			"Name": "Eye_VL_Iris_UpperShade"
+			"Name": "Boot_VL_UpperStrap"
 		},
 		{
 			"Id": "ArtMesh176",
-			"Name": "Eye_VL_Pupil"
+			"Name": "Boot_VR_Toe"
 		},
 		{
 			"Id": "ArtMesh177",
-			"Name": "Eye_VL_Catchlight"
+			"Name": "Boot_VL_Toe"
 		},
 		{
 			"Id": "ArtMesh178",
-			"Name": "Eye_VL_OuterCorner"
+			"Name": "Boot_VR_Sole"
 		},
 		{
 			"Id": "ArtMesh179",
-			"Name": "Eye_VL_UpperLashes"
+			"Name": "Boot_VL_Sole"
 		},
 		{
 			"Id": "ArtMesh180",
-			"Name": "Eye_VL_LowerLid"
+			"Name": "Boot_VR_Main"
 		},
 		{
 			"Id": "ArtMesh181",
-			"Name": "Eye_VL_UpperLid"
+			"Name": "Boot_VL_Main"
 		},
 		{
 			"Id": "ArtMesh182",
-			"Name": "Eye_VR_Sclera"
+			"Name": "Leg_VR_Opening"
 		},
 		{
 			"Id": "ArtMesh183",
-			"Name": "Eye_VR_Iris"
+			"Name": "Leg_VL_Opening"
 		},
 		{
 			"Id": "ArtMesh184",
-			"Name": "Eye_VR_Iris_UpperShade"
+			"Name": "Leg_VR_Lower"
 		},
 		{
 			"Id": "ArtMesh185",
-			"Name": "Eye_VR_Pupil"
+			"Name": "Leg_VL_Lower"
 		},
 		{
 			"Id": "ArtMesh186",
-			"Name": "Eye_VR_Catchlight"
+			"Name": "Leg_VR_Upper"
 		},
 		{
 			"Id": "ArtMesh187",
-			"Name": "Eye_VR_LowerReflection"
+			"Name": "Leg_VL_Upper"
 		},
 		{
 			"Id": "ArtMesh188",
-			"Name": "Eye_VR_OuterCorner"
+			"Name": "Tail_TipWithTransition"
 		},
 		{
 			"Id": "ArtMesh189",
-			"Name": "Eye_VR_UpperLashes"
+			"Name": "Tail_RisingArc"
 		},
 		{
 			"Id": "ArtMesh190",
-			"Name": "Eye_VR_LowerLid"
+			"Name": "Tail_LowerArc"
 		},
 		{
 			"Id": "ArtMesh191",
-			"Name": "Eye_VR_UpperLid"
+			"Name": "Tail_Root"
 		}
 	]
 }

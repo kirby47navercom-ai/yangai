@@ -1,6 +1,6 @@
 // Portable source preparation; native model export uses UmamoHana.kt.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
-const sharp=require('sharp'),{createCanvas,loadImage}=require('@napi-rs/canvas'),psd=require('ag-psd');
+const sharp=require('sharp'),{createCanvas,loadImage,ImageData}=require('@napi-rs/canvas'),psd=require('ag-psd');
 psd.initializeCanvas(createCanvas,(w,h)=>({width:w,height:h,data:new Uint8ClampedArray(w*h*4)}));
 const root=path.resolve(__dirname,'../..'),dest=path.join(root,'assets/live2d/hana-v7-rig');
 const W=4096,H=6144,S=4,read=f=>JSON.parse(fs.readFileSync(f,'utf8'));
@@ -67,20 +67,37 @@ async function prepare(){
   const c=createCanvas(W,H),ctx=c.getContext('2d');
   for(const p of parts){const file=path.join(dest,p.file),{data,info}=await sharp(file).ensureAlpha().raw().toBuffer({resolveWithObject:true});layers.push({name:p.id,left:p.left,top:p.top,opacity:1,blendMode:'normal',imageData:{width:info.width,height:info.height,data:new Uint8ClampedArray(data)}});ctx.drawImage(await loadImage(file),p.left,p.top);}
   const groups=[...new Set(parts.map(p=>p.group))];
-  const children=[...groups.reverse().map(g=>({name:g,opened:false,children:layers.filter(l=>parts.find(p=>p.id===l.name).group===g).reverse()}))];
+  // ag-psd stores children bottom-to-top. Reversing them makes skin/fabric cover their details.
+  const children=groups.map(g=>({name:g,opened:false,children:layers.filter(l=>parts.find(p=>p.id===l.name).group===g)}));
   // Native full circular eye masters are retained for the gaze pass, not shown as unclipped discs.
   const eyeBase=path.join(root,'assets/live2d/hana-v6-precision/eye-motion-v2');
   const eyeParts=read(path.join(eyeBase,'parts.json')).parts.filter(p=>p.left!==undefined&&p.kind!=='guide');
   const eyeLayers=[];
   for(const p of eyeParts){const {data,info}=await sharp(path.join(eyeBase,p.file)).raw().toBuffer({resolveWithObject:true});eyeLayers.push({name:'Master_'+p.id,left:p.left,top:p.top,opacity:0,hidden:true,imageData:{width:info.width,height:info.height,data:new Uint8ClampedArray(data)}});}
-  children.unshift({name:'98_EyeMotionMasters',opened:false,children:eyeLayers.reverse()});
+  children.push({name:'98_EyeMotionMasters',opened:false,children:eyeLayers});
   const composite=ctx.getImageData(0,0,W,H);
   const binary=psd.writePsdBuffer({width:W,height:H,bitsPerChannel:8,colorMode:3,imageData:composite,children},{compress:true});
-  fs.writeFileSync(path.join(dest,'hana-rig-source.psd'),binary);
   const decoded=psd.readPsd(binary,{useImageData:true,skipCompositeImageData:true,skipThumbnail:true});
   const all=decoded.children.flatMap(g=>g.children);assert.equal(all.length,layers.length+eyeLayers.length);
   assert.equal(new Set(all.map(a=>a.name)).size,all.length,'Duplicate PSD names');
   for(const l of layers){const actual=all.find(a=>a.name===l.name);assert(Buffer.from(actual.imageData.data).equals(Buffer.from(l.imageData.data)),l.name+': PSD pixels changed');assert.equal(actual.left,l.left);assert.equal(actual.top,l.top);}
+  const visible=decoded.children.filter(g=>g.name!=='98_EyeMotionMasters').flatMap(g=>g.children);
+  for(const [below,above]of [['Face','Eye_VL_Iris'],['Face','Eye_VR_UpperLashes'],['Face','Mouth'],['Waist_Corset','Waist_Button_1'],['Sleeve_VL_Main','SleeveFlap_VL'],['Skirt_Center','Skirt_Emblem_1']])assert(visible.findIndex(l=>l.name===below)<visible.findIndex(l=>l.name===above),'PSD order: '+below+' covers '+above);
+  const roundTrip=createCanvas(W,H),rt=roundTrip.getContext('2d'),tiles=new Map();
+  for(const l of visible){const id=l.imageData,tile=createCanvas(id.width,id.height);tile.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(id.data),id.width,id.height),0,0);tiles.set(l.name,tile);rt.drawImage(tile,l.left,l.top);}
+  const actual=rt.getImageData(0,0,W,H).data;let badPixels=0,totalError=0;
+  for(let i=0;i<actual.length;i+=4){let error=0;for(let k=0;k<4;k++)error=Math.max(error,Math.abs(actual[i+k]-composite.data[i+k]));if(error>12)badPixels++;totalError+=error;}
+  const visualQa={psdPixelRoundTrip:'PASS',layerOrder:'PASS',psdCompositeBadPixels:badPixels,psdCompositeMeanMaxError:totalError/(W*H),largeHiddenAnatomyRepainted:false};
+  console.log(JSON.stringify(visualQa));
+  assert(badPixels/(W*H)<.0005,'PSD grouped stack differs visibly from PNG reference');
+  fs.writeFileSync(path.join(dest,'hana-rig-source.psd'),binary);
+  const roundTripPng=await roundTrip.encode('png');
+  fs.writeFileSync(path.join(dest,'qa/psd-composite.png'),roundTripPng);
+  fs.writeFileSync(path.join(dest,'qa/visual.json'),JSON.stringify(visualQa,null,2)+'\n');
+  const poseTests=[['head-positive',b=>b.id==='Head'?1:0],['arms',b=>/^Arm_|^Forearm_|^Wrist_/.test(b.id)?(b.id.endsWith('VL')?1:-1):0],['legs',b=>/^Thigh_|^Shin_/.test(b.id)?(b.id.endsWith('VL')?1:-1):0],['hair',b=>/^Pony_|^Detail_(Hair|Pony|Forelock)/.test(b.id)?.7:0],['clothing',b=>/^Skirt_|^Jacket_|^Cape_|^Bow$|^Tie$|^Detail_(?!Hair|Pony|Forelock)/.test(b.id)?.7:0],['tail',b=>/^Tail_/.test(b.id)?1:0]];
+  for(const [name,value]of poseTests){const pose=createCanvas(2048,3072),pc=pose.getContext('2d');pc.scale(.5,.5);for(const p of spec.parts){pc.save();const chain=[];for(let b=bones.find(b=>b.id===p.bone);b;b=bones.find(parent=>parent.id===b.parent))chain.unshift(b);for(const b of chain){pc.translate(...b.pivot);pc.rotate(value(b)*b.range*Math.PI/180);pc.translate(-b.pivot[0],-b.pivot[1]);}pc.drawImage(tiles.get(p.id),p.left,p.top);pc.restore();}fs.writeFileSync(path.join(dest,'qa/pose-'+name+'.png'),await pose.encode('png'));}
+  const regions=[['head',980,0,1900,1360],['chest',1400,1020,1150,1250],['waist',1360,1860,1320,1450],['left-arm',520,1650,1150,1950],['right-arm',2350,1650,1100,1950],['legs-boots',1380,3120,1190,2920],['tail',2350,2670,1580,2000]];
+  for(const [name,left,top,width,height]of regions)fs.writeFileSync(path.join(dest,'qa/review-'+name+'.png'),await sharp(roundTripPng).extract({left,top,width,height}).png().toBuffer());
   fs.writeFileSync(path.join(dest,'rig.json'),JSON.stringify(spec,null,2)+'\n');
   const preview=`<!doctype html><html lang="ko"><meta charset="utf-8"><title>하나 — 전신 관절 초안</title><style>body{margin:0;background:#202a36;color:#eee;font:16px sans-serif;display:flex}aside{width:240px;padding:16px;position:fixed;overflow:auto;height:96vh}main{margin-left:280px}canvas{height:96vh;max-width:calc(100vw - 290px);object-fit:contain}label{display:block;margin:16px 0}input{width:210px}p{font-size:13px;line-height:1.6;color:#bcc8d5}</style><aside><h2>하나 관절 초안</h2><p>분리 PNG에 회전 계층을 적용한 미리보기예요. 이 페이지는 PNG 관절 미리보기예요. 편집 가능한 모델은 umamo/hana.cmo3에 따로 저장돼요. 큰 각도에서 생기는 빈틈은 재작화가 필요해요.</p><button id="reset">초기화</button><label><input id="play" type="checkbox">자동 움직임</label><label><input id="skeleton" type="checkbox">관절 표시</label><div id="controls"></div></aside><main><canvas id="view" width="2048" height="3072"></canvas></main><script>
 const rig=${JSON.stringify(spec)},canvas=document.getElementById('view'),ctx=canvas.getContext('2d'),values={},images=new Map(),byId=new Map(rig.bones.map(b=>[b.id,b]));

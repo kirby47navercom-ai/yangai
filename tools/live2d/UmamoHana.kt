@@ -17,6 +17,7 @@ import org.umamo.interop.moc3.`import`.Moc3Import
 import org.umamo.render.DecodedImage
 import org.umamo.render.withTexturePagesFrom
 import org.umamo.render.eval.CpuDeformationEvaluator
+import org.umamo.render.eval.renderOrder
 import org.umamo.runtime.model.*
 import org.umamo.ui.model.packModelAtOpen
 
@@ -41,6 +42,11 @@ fun main(args: Array<String>) {
         override val layers = rawArt.layers.filter { it.name in assignments }
     }
     check(art.layers.size == assignments.size) { "PSD parts missing or duplicated" }
+    val expectedPaintOrder = art.layers.map { it.name }
+    fun checkPaintOrder(model: PuppetModel, label: String, names: Map<DrawableId, String> = model.drawables.associate { it.id to it.name }) {
+        val actual = renderOrder(model.renderRoot, CpuDeformationEvaluator().evaluate(model, emptyMap()).drawOrder).map { names.getValue(it) }
+        check(actual == expectedPaintOrder) { "$label changes PSD paint order" }
+    }
     val parameters = bones.distinctBy { it.string("parameter") }.map {
         Parameter(ParameterId(it.string("parameter")), it.string("id"), -it.number("inputRange"), it.number("inputRange"), 0f)
     }
@@ -101,7 +107,10 @@ fun main(args: Array<String>) {
     val cmoBytes = Cmo3.write(cmo.model)
     val reopened = Cmo3Import.fromModelSource(Cmo3.read(cmoBytes).root as CModelSource)
     check(reopened.drawables.size == parts.size && reopened.deformers.size == bones.size)
-    val poses = listOf(emptyMap(), mapOf(ParameterId("ParamAngleZ") to 30f), mapOf(ParameterId("ParamTailTip") to 1f))
+    checkPaintOrder(packed.model, "Packed model")
+    checkPaintOrder(reopened, "Reopened CMO3")
+    val poses = listOf(emptyMap(), mapOf(ParameterId("ParamAngleZ") to 30f), mapOf(ParameterId("ParamTailTip") to 1f)) +
+        bones.map { mapOf(ParameterId(it.string("parameter")) to it.number("inputRange")) }
     val poseErrors = poses.map { pose ->
         val before=eval.evaluate(packed.model,pose); val after=eval.evaluate(reopened,pose)
         reopened.drawables.maxOf { d ->
@@ -116,6 +125,8 @@ fun main(args: Array<String>) {
     check(bundle.report.notices.isEmpty()) { "MOC3 export notices: ${bundle.report.notices}" }
     val baked = Moc3Import.fromMocDocument(Moc3.read(bundle.files.first { it.name==bundle.mocFileName }.bytes),null)
     check(baked.drawables.size == drawables.size && baked.deformers.size == deformers.size)
+    // MOC3 without a CDI sidecar carries drawable IDs, not the editor's part names.
+    checkPaintOrder(baked, "Decoded MOC3", packed.model.drawables.associate { it.id to it.name })
     val mocPoseErrors = poses.map { pose ->
         val a=eval.evaluate(packed.model,pose);val b=eval.evaluate(baked,pose)
         packed.model.drawables.maxOf { d ->
@@ -134,6 +145,7 @@ fun main(args: Array<String>) {
         put("meshVertices",drawables.sumOf { it.mesh!!.vertexCount });put("atlasPages",pages.size);put("cmo3ReadBack","PASS");put("moc3Decode","PASS")
         put("neutralPose","PASS");put("savedPoseMaxErrorPixels",poseErrors.max());put("editorVisualCheck",false);put("live2dRuntimeTested",false)
         put("moc3PoseMaxErrorPixels",mocPoseErrors.max())
+        put("nativePaintOrder","PASS");put("savedPoseChecks",poses.size)
         put("eyeBlinkGazeMouthPhysicsFinished",false);put("largeHiddenAnatomyRepainted",false)
     }
     File(folder,"qa/umamo-rig.json").writeText(Json { prettyPrint=true }.encodeToString(JsonObject.serializer(),report)+"\n")

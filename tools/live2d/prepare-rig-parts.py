@@ -65,6 +65,8 @@ def main():
     source[:, :, 3] = np.rint(original_alpha * edge_keep).astype(np.uint8)
     assert np.array_equal(source[:, :, 3][original_alpha >= 240], original_alpha[original_alpha >= 240])
     h, w = source.shape[:2]
+    fabric_path = DEST / 'underpaint/fabric-clean-generated.png'
+    fabric = cv2.resize(read_image(fabric_path), (w, h), interpolation=cv2.INTER_CUBIC) if fabric_path.exists() else None
     owners = np.zeros((h, w), np.uint16)
     for n, part in enumerate(parts, 1):
         img = read_image(BASE / part['file'])
@@ -126,6 +128,7 @@ def main():
         extend &= same_family & (src[:, :, 3] >= 240) & ~own
         extend &= ~small
         fill = small
+        ai_fill_count = 0
         if fill.any():
             # Supply valid nearest texture outside this part before inpainting its new hidden band.
             hsv = cv2.cvtColor(src[:, :, :3], cv2.COLOR_BGR2HSV)
@@ -148,9 +151,44 @@ def main():
             painted = cv2.inpaint(rgb, fill.astype(np.uint8) * 255, 6, cv2.INPAINT_TELEA)
             img[fill, :3] = painted[fill]
             img[fill, 3] = src[fill, 3]
+            if part['id'] == 'Face':
+                # AI-repainted skin supplies only the hidden feature holes; all original visible pixels stay exact.
+                skin_path = DEST / 'underpaint/face-clean-generated.png'
+                if skin_path.exists():
+                    skin = cv2.resize(read_image(skin_path), (right - x, bottom - y), interpolation=cv2.INTER_AREA)
+                    mask = fill & (skin[:, :, 3] > 240)
+                    assert mask.sum() >= fill.sum() * .98, 'Skin underpaint does not cover feature holes'
+                    img[mask, :3] = skin[mask, :3]
+                    ai_fill_count = int(mask.sum())
+            elif fabric is not None and underneath:
+                cloth = fabric[y:bottom, x:right]
+                cloth_hsv = cv2.cvtColor(cloth[:, :, :3], cv2.COLOR_BGR2HSV)
+                valid = cloth[:, :, 3] > 240
+                if part['id'].startswith(('Jacket_', 'Sleeve_')):
+                    valid &= (cloth_hsv[:, :, 1] < 85) & (cloth_hsv[:, :, 2] > 155)
+                elif part['id'].startswith(('Boot_', 'Skirt_')) or part['id'] in ('Waist_Corset', 'Inner_Bodice'):
+                    valid &= (cloth_hsv[:, :, 1] < 100) & (cloth_hsv[:, :, 2] < 160)
+                elif part['id'] in ('Cuff_VL', 'Cape_VL'):
+                    valid &= cloth[:, :, 2].astype(int) - cloth[:, :, 0] > 55
+                elif part['id'] in ('Cuff_VR', 'Cape_VR'):
+                    valid &= cloth[:, :, 0].astype(int) - cloth[:, :, 2] > 55
+                mask = fill & valid
+                img[mask, :3] = cloth[mask, :3]
+                ai_fill_count = int(mask.sum())
+        skin_repainted = False
+        if part['id'] == 'Face' and (DEST / 'underpaint/face-clean-generated.png').exists():
+            # Joining patches from two skin paintings leaves seams. Repaint this skin base consistently;
+            # the original separate eye, brow, nose, mouth and hair layers remain unchanged.
+            skin = cv2.resize(read_image(DEST / 'underpaint/face-clean-generated.png'), (right - x, bottom - y), interpolation=cv2.INTER_AREA)
+            # Retain the generated continuous alpha too: the old mask still contains feature-shaped holes.
+            img = skin.copy()
+            skin_mask = skin[:, :, 3] > 0
+            ai_fill_count = int(skin_mask.sum())
+            skin_repainted = True
         # A joint band continues the adjacent existing texture exactly at the neutral pose.
         img[extend] = src[extend]
-        assert np.array_equal(img[own], src[own]), part['id'] + ': changed visible pixels'
+        if not skin_repainted:
+            assert np.array_equal(img[own], src[own]), part['id'] + ': changed visible pixels'
         file = 'parts/' + part['id'] + '.png'
         ok, encoded = cv2.imencode('.png', img)
         assert ok
@@ -158,6 +196,8 @@ def main():
         record = {**part, 'file': file, 'left': x, 'top': y, 'width': right - x, 'height': bottom - y,
                   'articulationBounds': [part['left'], part['top'], part['width'], part['height']],
                   'hiddenFillPixels': int(small.sum()), 'jointOverlapPixels': int(extend.sum()),
+                  'aiUnderpaintPixels': ai_fill_count,
+                  'visibleSkinRepainted': skin_repainted,
                   'status': 'native-pixels-with-local-overlap', 'hiddenSurface': 'small-occlusions-only'}
         record.pop('sha256', None)
         output.append(record)
@@ -167,8 +207,13 @@ def main():
             print('Prepared', len(output), 'parts', flush=True)
     report = {'canvas': [w, h], 'parts': output, 'residueReassigned': int(residue.sum()),
               'hiddenFillPixels': total_filled, 'jointOverlapPixels': total_overlap,
-              'sourceSolidPixelsPreserved': True, 'sourceRgbPreserved': True,
+              'sourceSolidPixelsPreserved': not any(p['visibleSkinRepainted'] for p in output),
+              'sourceRgbPreserved': not any(p['visibleSkinRepainted'] for p in output),
+              'unchangedOriginalParts': sum(not p['visibleSkinRepainted'] for p in output),
               'backgroundHaloPixelsRemoved': int(((original_alpha > 0) & (source[:, :, 3] == 0)).sum()),
+              'skinUnderpaint': 'Continuous skin base; original facial feature layers retained' if (DEST / 'underpaint/face-clean-generated.png').exists() else None,
+              'fabricUnderpaint': 'AI repair limited to material-matched hidden fabric' if fabric is not None else None,
+              'aiUnderpaintPixels': sum(p['aiUnderpaintPixels'] for p in output),
               'largeHiddenAnatomyRepainted': False,
               'rigReady': False, 'cubismImportTested': False}
     (DEST / 'parts.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
