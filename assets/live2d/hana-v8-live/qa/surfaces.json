@@ -1,7 +1,11 @@
 {
   "assetChecks": "PASS",
-  "parts": 191,
+  "parts": 193,
   "matchingPaintOverlaps": 11,
+  "thighMaxAdjacentRowColorStep": {
+    "Leg_VL_Upper": 0.5285714285714249,
+    "Leg_VR_Upper": 0.45049504950495134
+  },
   "original4kSha256Unchanged": "f91e25e12a870c202511d97912caa3ed196563a6e8052a314b0f965ab571e00a",
   "fullBodyArtFinished": false
 }

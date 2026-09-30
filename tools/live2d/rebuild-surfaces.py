@@ -29,6 +29,9 @@ def clean(rgba, largest=False):
     assert count > 1, 'No opaque painting'
     keep = labels == (1+np.argmax(stats[1:, cv2.CC_STAT_AREA])) if largest else np.isin(labels, [i for i in range(1, count) if stats[i, cv2.CC_STAT_AREA] >= 32])
     tile = rgba.copy(); tile[~grow(keep, 2), 3] = 0
+    # Generated opaque materials carry alpha 252/253. Overlapping them shows a rectangular opacity step.
+    # Keep fractional antialiasing at the contour, but make the solid material actually opaque.
+    tile[tile[:,:,3]>190,3]=255
     return tile
 
 def bounds(rgba):
@@ -45,7 +48,7 @@ def main():
     current = json.loads((MODEL / 'parts.json').read_text(encoding='utf-8'))
     extra = {p['id']: p for p in current['parts'] if p['id'].endswith('_Sclera') or p['id'] in ('Mouth_Open','Eye_VL_Tear','Eye_VR_Tear')}
     baseline = json.loads((V7 / 'parts.json').read_text())['parts']
-    parts = [{**p} for p in baseline]
+    parts = [{**p} for p in baseline if not p['id'].startswith('Forelock_Blue_Tip')]
     images = {p['id']: read(V7 / p['file']) for p in parts}
     for p in parts:
         if p['id'].endswith('_Sclera'):
@@ -55,6 +58,9 @@ def main():
     by_id = {p['id']: p for p in parts}; removed = {}
 
     def save(name, rgba, box=None, reason='closed-object-contour-reviewed'):
+        if name not in by_id:
+            p={'id':name,'group':'01_BootRear','defaultOpacity':1}
+            parts.append(p);by_id[name]=p
         p = by_id[name]
         if box is not None: p['left'],p['top'] = box[:2]
         ys,xs = np.where(rgba[:,:,3] > 0); assert len(xs), name
@@ -101,6 +107,10 @@ def main():
     neck_box=(1820,870,2165,1310)
     save('Neck',fit(read(PAINT/'neck-skin.png'),neck_box,largest=True),neck_box,'complete-painted-neck-under-jaw-and-collar')
     by_id['Neck']['group']='08_Torso'  # Neck behind collar; it must not paint skin over the front collar.
+    collar=images['Collar'].copy()
+    cloth=np.ptp(collar[:,:,:3].astype(int),axis=2)<35
+    collar[~cloth,3]=0
+    save('Collar',clean(collar,largest=True),reason='collar-cloth-only-no-old-neck-outline-or-red-cape')
     box=(1390,170,2390,1080); white=fit(read(PAINT/'white-front-hair.png'),box,largest=True)
     # ONE coherent white hair painting owns the complete shape; its detail layers use identical paint.
     # Different generated/old white paintings must not be overlaid: that creates doubled strand edges.
@@ -118,7 +128,6 @@ def main():
         painted=fit(read(PAINT/paint),target)
         # Skin-colored shadow triangles can pass a red threshold. Do not copy this contaminated old lock.
         save(name,painted,target,'complete-painted-hair-only')
-    parts=[p for p in parts if not p['id'].startswith('Forelock_Blue_Tip')]
 
     # Reconstruct BOTH ponytails from completed hair paint, not hair-shaped scraps of skin/cape/clips.
     back=read(PAINT/'back-hair.png')
@@ -158,7 +167,6 @@ def main():
         save(name,clean(patch,largest=True),box,'same-painted-skirt-fabric-with-covered-panel-roots')
     coat_box=(560,1260,3210,3030); coat=fit(read(PAINT/'jacket-base.png'),coat_box)
     yy,xx=np.indices(coat.shape[:2]); gx,gy=xx+coat_box[0],yy+coat_box[1]
-    precise=json.loads((MODEL.parent/'hana-v6-precision/parts.json').read_text())['parts']
     # Match shoulder width to the source posture before cutting: the generated jacket was too narrow there.
     factor=1+.26*np.clip((2100-gy)/700,0,1)
     coat=cv2.remap(coat,(1940+(gx-1940)/factor-coat_box[0]).astype(np.float32),yy.astype(np.float32),cv2.INTER_LANCZOS4)
@@ -215,42 +223,55 @@ def main():
     for side,box in [('VL',(1570,4950,2080,6105)),('VR',(2090,4950,2600,6105))]:
         half=slice(0,boots.shape[1]//2) if side=='VL' else slice(boots.shape[1]//2,None)
         plane=fit(boots[:,half],box,largest=True)
-        save('Boot_'+side+'_Main',plane,box,'complete-painted-leather-boot-no-ornaments')
+        yy,xx=np.indices(plane.shape[:2]);cx=plane.shape[1]/2
+        # Back lining behind the calf, front rim/shaft in front of it. A filled ellipse cannot be worn.
+        rear=plane.copy();rear[yy>115,3]=0
+        save('Boot_'+side+'_Back',rear,box,'painted-boot-rear-rim-and-lining-behind-calf')
+        opening=((xx-cx)/(plane.shape[1]*.425))**2+((yy-48)/39)**2<1
+        plane[opening,3]=0
+        save('Boot_'+side+'_Main',plane,box,'complete-painted-boot-front-with-open-calf-insertion')
         for suffix in ('Toe','Sole','UpperStrap','LowerStrap'):
             name='Boot_'+side+'_'+suffix
             mask=grow(regional(guides[name],read(GUIDES/(name+'.png')),box)[:,:,3]>128,6)
             patch=plane.copy(); patch[~mask,3]=0
             save(name,clean(patch,largest=True),box,'same-painted-boot-leather-with-covered-overlap')
-    legs=clean(read(PAINT/'legs-complete.png'))
-    for side,interval,box in [('VL',(0,legs.shape[1]//2),(1340,3000,1950,5140)),('VR',(legs.shape[1]//2,legs.shape[1]),(1950,3000,2520,5140))]:
+    legs=read(PAINT/'legs-complete-v2.png')
+    syy,sxx=np.indices(legs.shape[:2])
+    # Split in the EMPTY gap, not at the canvas midpoint: the left calf crosses that midpoint.
+    gap=np.interp(syy[:,0]/legs.shape[0]*1536,[0,160,380,580,690,990,1130,1260,1440,1536],
+                  [520,515,520,524,535,555,570,570,575,575])/1024*legs.shape[1]
+    for side,box in [('VL',(1340,3000,1950,5140)),('VR',(1950,3000,2520,5140))]:
         # A stocking is one continuous anatomical silhouette, not two paintings meeting at a crop line.
-        full=fit(legs[:,interval[0]:interval[1]],box,largest=True)
+        leg=legs.copy();leg[sxx>gap[:,None] if side=='VL' else sxx<gap[:,None],3]=0
+        full=fit(leg,box,largest=True)
         # Match original leg anatomy and knee height, while preserving ONE uninterrupted painting.
         yy,xx=np.indices(full.shape[:2]); gy=yy+box[1]
         sy=np.interp(gy[:,0],[3000,4108,5140],[0,(full.shape[0]-1)*.4,full.shape[0]-1])
-        native_alpha=np.zeros(full.shape[:2],np.uint8)
-        for original in precise:
-            if original['id'].startswith('Leg_'+side) and original.get('file'):
-                native_alpha=np.maximum(native_alpha,regional(original,read(MODEL.parent/'hana-v6-precision'/original['file']),box)[:,:,3])
-        rows=np.arange(full.shape[0]); valid=(native_alpha>190).any(axis=1)
-        lo=np.interp(rows,rows[valid],np.argmax(native_alpha[valid]>190,axis=1))
-        hi=np.interp(rows,rows[valid],full.shape[1]-1-np.argmax(native_alpha[valid,::-1]>190,axis=1))
-        # Visible source masks have tail/skirt occlusion steps, not anatomical notches.
+        # The old visible-pixel masks contain skirt/tail occlusion steps. Never use them as anatomy.
+        joints=[3000,4108,4450,4950,5140]
+        centers=[1600,1720,1740,1790,1800] if side=='VL' else [2230,2170,2280,2350,2370]
+        radii=[240,145,160,120,115] if side=='VL' else [250,135,180,110,105]
+        center=np.interp(gy[:,0],joints,centers)-box[0];radius=np.interp(gy[:,0],joints,radii)
+        lo=center-radius;hi=center+radius
         lo=cv2.GaussianBlur(lo.astype(np.float32).reshape(-1,1),(1,81),20).ravel()
         hi=cv2.GaussianBlur(hi.astype(np.float32).reshape(-1,1),(1,81),20).ravel()
         source=full[np.rint(sy).astype(int),:,3]>190
-        sl=source.argmax(axis=1); sh=full.shape[1]-1-source[:,::-1].argmax(axis=1)
+        valid=source.any(axis=1);rows=np.arange(len(source))
+        sl=np.interp(rows,rows[valid],source[valid].argmax(axis=1))
+        sh=np.interp(rows,rows[valid],full.shape[1]-1-source[valid,::-1].argmax(axis=1))
+        sl=cv2.GaussianBlur(sl.astype(np.float32).reshape(-1,1),(1,31),7).ravel()
+        sh=cv2.GaussianBlur(sh.astype(np.float32).reshape(-1,1),(1,31),7).ravel()
         sx=sl[:,None]+(xx-lo[:,None])*(sh-sl)[:,None]/np.maximum(hi-lo,1)[:,None]
         full=cv2.remap(full,sx.astype(np.float32),np.broadcast_to(sy[:,None],yy.shape).astype(np.float32),cv2.INTER_LANCZOS4)
         full[(xx<lo[:,None])|(xx>hi[:,None]),3]=0
         for suffix,y0,y1 in [('Upper',3000,4230),('Lower',4060,5140),('Opening',4950,5140)]:
             region=(box[0],y0,box[2],y1)
             save('Leg_'+side+'_'+suffix,regional({'left':box[0],'top':box[1]},full,region),region,'painted-continuous-stocking-overlap')
-    box=(2350,2650,4092,4670); tail=fit(read(PAINT/'tail-complete.png'),box)
-    for name,region in [('Tail_Root',box),('Tail_LowerArc',(2350,3510,3560,4670)),('Tail_RisingArc',(3270,3410,4092,4670)),('Tail_TipWithTransition',(3210,2650,4092,3900))]:
+    box=(2350,2650,4040,4670); tail=fit(read(PAINT/'tail-complete-v2.png'),box)
+    for name,region in [('Tail_Root',box),('Tail_LowerArc',(2350,3510,3560,4670)),('Tail_RisingArc',(3270,3410,4040,4670)),('Tail_TipWithTransition',(3210,2650,4040,3900))]:
         save(name,regional({'left':box[0],'top':box[1]},tail,region),region,'painted-complete-tail-overlap')
 
-    order=['01_Tail','02_Legs','03_Boots','04_Skirt','08_Torso','05_Sleeves','06_Hands','07_Cuffs','09_Jacket','12_Hair','10_Cape','11_Neck','18_ArmDetails','20_Hardware','21_SkirtDecor','17_Bow','13_Face','15_Eyes','15_Eye_VL','15_Eye_VR','16_FaceDetails','14_Crown','14_FrontHair','19_HairClips']
+    order=['01_Tail','01_BootRear','02_Legs','03_Boots','04_Skirt','08_Torso','05_Sleeves','06_Hands','07_Cuffs','09_Jacket','12_Hair','10_Cape','11_Neck','18_ArmDetails','20_Hardware','21_SkirtDecor','17_Bow','13_Face','15_Eyes','15_Eye_VL','15_Eye_VR','16_FaceDetails','14_Crown','14_FrontHair','19_HairClips']
     assert set(p['group'] for p in parts).issubset(order)
     parts.sort(key=lambda p:order.index(p['group']))
     report={'workflow':'painted-material-surfaces-before-detail-separation','processedParts':len(parts),

@@ -105,6 +105,20 @@ class AvatarTests(unittest.TestCase):
             self.assertLessEqual(abs(pose['ParamHairSwing']), 1)
         self.assertLess(abs(pose['ParamHairSwing']), .001)
 
+    def test_live_body_and_connected_legs_are_driven_without_losing_head_range(self):
+        clock = [0.0]
+        state = AvatarState(clock=lambda: clock[0], rng=random.Random(4))
+        self.assertEqual(state.pose(1, -1)['ParamBodyAngleX'], 0)
+        for _ in range(90):
+            clock[0] += 1/30
+            pose = state.pose(1, -1)
+        self.assertGreater(pose['ParamAngleX'], 19.9)
+        self.assertGreater(pose['ParamAngleY'], 14.9)
+        self.assertGreater(pose['ParamBodyAngleX'], 6)
+        self.assertGreater(pose['ParamLegVL'], .1)
+        self.assertAlmostEqual(pose['ParamLegVL'], pose['ParamLegVR'])
+        self.assertAlmostEqual(pose['ParamKneeVL'], -pose['ParamKneeVR'])
+
     def test_playback_levels_follow_pcm_not_synthesis_or_cancelled_audio(self):
         import winsound
         clock, rows = [0.0], []

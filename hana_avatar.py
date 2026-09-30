@@ -60,16 +60,21 @@ class AvatarState:
             "ParamEyeSmile": eye_smile, "ParamMouthOpenY": audio,
             "ParamMouthForm": mouth, "ParamBrowForm": brow, "ParamBrowY": height,
             "ParamTears": tears, "ParamBodyAngleZ": -x * .7 + math.sin(t * .65) * .16,
+            "ParamBodyAngleX": x * 7 + math.sin(t * .55) * .8,
             "ParamBreath": (math.sin(t * 1.7) + 1) * .35,
             "ParamTailSwing": math.sin(t * .85 - 1.2) * .25,
             "ParamArmSwingVL": math.sin(t * 1.1) * (.08 + audio * .16),
             "ParamArmSwingVR": math.sin(t * 1.1 + .6) * (.08 + audio * .16),
+            "ParamLegVL": x * .18 + math.sin(t * .55) * .08,
+            "ParamLegVR": x * .18 + math.sin(t * .55) * .08,
+            "ParamKneeVL": math.sin(t * .55) * .12,
+            "ParamKneeVR": -math.sin(t * .55) * .12,
         }
         previous_head = self.values.get("ParamAngleX", 0.0)
         for key, value in target.items():
             # Fast blink/lip response; slower head/face transitions avoid snapping between sentences.
             speed = 35 if key in ("ParamEyeLOpen", "ParamEyeROpen", "ParamMouthOpenY") else 20 if key.startswith("ParamEyeBall") else 4 if key.startswith("ParamAngle") else 7
-            previous = self.values.get(key, 0.0 if key.startswith(("ParamAngle", "ParamEyeBall")) else value)
+            previous = self.values.get(key, 0.0 if key.startswith(("ParamAngle", "ParamEyeBall", "ParamBodyAngle", "ParamLeg", "ParamKnee")) else value)
             self.values[key] = previous + (value - previous) * (1 - math.exp(-speed * dt))
         # Secondary BACK hair follows head velocity; front bangs never slide independently over skin.
         drive = max(-.8, min(.8, -(self.values['ParamAngleX'] - previous_head) / max(dt, .001) * .014))

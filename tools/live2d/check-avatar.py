@@ -54,8 +54,19 @@ try:
         image = render("motion-" + str(direction), {"ParamEyeLOpen": 1, "ParamEyeROpen": 1,
             "ParamAngleX": direction * 20, "ParamAngleY": direction * 15, "ParamEyeBallX": direction,
             "ParamEyeBallY": direction, "ParamHairSwing": direction, "ParamTailSwing": direction,
+            "ParamBodyAngleX": direction * 7, "ParamLegVL": direction, "ParamLegVR": direction,
+            "ParamKneeVL": -direction, "ParamKneeVR": direction,
             "ParamArmSwingVL": direction, "ParamArmSwingVR": -direction, "ParamBreath": 1})
         assert image.tobytes() != neutral.tobytes()
+        image.crop((240, 690, 1010, 1536)).save(folder/'qa'/('runtime-lower-body-'+str(direction)+'.png'))
+    combined=Image.new('RGBA',(512*3,768*2),'#172033')
+    for i,(yaw,pitch,eye,openness,form) in enumerate([(-20,-15,1,.7,1),(20,-15,0,0,-1),
+            (-20,15,0,.7,-1),(20,15,1,.7,1),(0,0,1,.03,0),(0,0,1,.12,0)]):
+        image=render('combined-'+str(i),{'ParamAngleX':yaw,'ParamAngleY':pitch,'ParamAngleZ':-yaw/4,
+            'ParamBodyAngleX':yaw*.35,'ParamEyeLOpen':eye,'ParamEyeROpen':eye,
+            'ParamMouthOpenY':openness,'ParamMouthForm':form,'ParamHairSwing':yaw/30},2,(0,-1.3))
+        combined.paste(image.resize((512,768)),(i%3*512,i//3*768))
+    combined.save(folder/'qa/runtime-combined-poses.png')
     directions=Image.new('RGBA',(470*3,435*3),'#172033')
     for i,(yaw,pitch) in enumerate((x,y) for y in (-15,0,15) for x in (-20,0,20)):
         pose={'ParamEyeLOpen':1,'ParamEyeROpen':1,'ParamAngleX':yaw,'ParamAngleY':pitch,
@@ -70,7 +81,7 @@ try:
         animation.set_expression(('neutral', 'happy', 'angry', 'cry')[i // 24])
         # Synthetic level for an explicit silent animation preview, not a claim of audible TTS validation.
         animation.audio_level(max(0, math.sin(i * .65)) * .16)
-        frames.append(render(None, animation.pose(math.sin(i / 18), math.sin(i / 21) * .5), 1.8, (0, -.7)).resize((512, 768)))
+        frames.append(render(None, animation.pose(math.sin(i / 18), math.sin(i / 21) * .5)).resize((512, 768)))
     frames[0].save(folder / 'qa/motion-preview.webp', save_all=True, append_images=frames[1:], duration=83, loop=0, quality=85)
     (folder / "qa/runtime.json").write_text(json.dumps({"officialCoreConsistency": True, "rendered": True,
         "parameters": len(ids), "visualReview": False}, indent=2) + "\n", encoding="utf-8")

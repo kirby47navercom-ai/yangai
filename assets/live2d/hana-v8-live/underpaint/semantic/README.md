@@ -27,6 +27,22 @@ Use case: precise-object-edit. Asset type: transparent material-surface artwork 
 | `legs-complete.png` | Both complete stocking-clad leg silhouettes, including upper thighs hidden beneath the skirt and lower ends behind boots. Match posture and smooth anatomical contours. No skirt, boots, tail or visible background fragments. |
 | `boots-base.png` | Both entire original charcoal-black ankle boots, front standing view, including upper openings, wrinkled shafts, round toes and platform soles. Keep plain black fastening bands; remove jewels, gold, flowers and colored tassels/ribbons. Paint uninterrupted leather under every ornament. No legs or stockings. |
 | `tail-complete.png` | A complete thick, soft curled white tail with a black end. Preserve the source curl, generous volume and softly grouped fur, using clean cel/soft shading instead of noisy individual hairs. No missing root, pinched notch, surrounding body or costume. |
+| `tail-complete-v2.png` | 현재 사용하는 꼬리 원본입니다. 오른쪽 잘린 외곽을 다시 작성하고 캔버스 여백을 확보하였습니다. |
+| `legs-complete-v2.png` | 현재 사용하는 연속된 다리 원본입니다. 다리 내부 명암을 이어 작성하며, 기존 가시 픽셀의 치마·꼬리 절단선을 형태로 재사용하지 않습니다. |
+
+## 이번 수정의 최종 이미지 생성 프롬프트
+
+기존 내장 이미지 생성 도구를 사용하였습니다. 아래 두 프롬프트는 선택한 새 원본의 실제 최종 호출 지시입니다. 꼬리의 첫 수정 결과는 여백이 부족하여 채택하지 않았습니다.
+
+```text
+Precise object edit of Image 1. The existing tail is too zoomed in: the RIGHT OUTER CURVE is clipped by the canvas. Render the SAME tail completely surrounded by spacious transparent margins. Use a SQUARE composition; zoom OUT significantly. The tail occupies only the CENTER 65 percent of the image width and height. A minimum 15 percent entirely transparent EMPTY margin on the left AND right AND top AND bottom is essential. Finish the right fur outline into a naturally rounded convex contour; no edge touches any canvas boundary. Keep exactly this white fluffy curved weasel tail with black/dark charcoal tip, broad clean cel-shaded fur masses and soft smooth shading. Root upper left and black tip upper right, same proportions. No added objects, no text, no backdrop, no grain, speckles, particles or bloom. Actual transparent PNG. Do NOT deliver a tightly cropped tail; the full object must float within ample blank alpha canvas.
+```
+
+```text
+Use case: precise-object-edit. Image 1 is the edit target and anime shading/style reference. Repaint this same pair of stocking-clad legs as a clean Live2D anatomical base on actual transparent alpha. Keep the original slim thigh/knee/calf/ankle proportions, feet down and same posture. TWO entirely COMPLETE separate dark charcoal warm gray stocking legs, from smooth rounded hidden upper-thigh roots to complete ankles/feet. No skirt, boots, body or costume. Each leg is a continuous opaque surface: inside the leg shape alpha must be fully opaque; outside the crisp clean leg silhouette alpha must be zero. REMOVE ALL brown fog and translucent haze outside the legs. No detached skin, horizontal step, rectangular shading, joint seam, background cloud or rim halo. Anatomically continuous rounded knees, broad clean smooth cel and soft shading, not disconnected thigh/knee/calf pieces. Delicate clean outer line; highlights follow the full leg continuously without abrupt changes. Sufficient transparent gap between the two legs and generous transparent margins. No grain, speckles, particles, bloom or glitter, no text. Same two stocking legs and palette, do not redesign.
+```
+
+다리 생성 원본에는 실루엣 주변의 흐린 알파가 일부 남아 있습니다. 프롬프트만으로 깔끔한 마스크가 보장된다고 취급하지 않습니다. 실행 파츠에는 정리한 윤곽과 불투명 내부를 적용하고 별도로 재조합을 검사합니다.
 
 ## 생성 결과와 적용 범위의 구분
 

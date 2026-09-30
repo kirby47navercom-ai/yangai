@@ -24,6 +24,23 @@ def at(name, x, y):
 
 assert at('Face', 1950, 450)[3] > 190, 'Forehead missing behind bangs'
 assert at('Neck', 1950, 1050)[3] > 190, 'Neck missing under jaw'
+assert spec['paintOrder'].index('01_BootRear') < spec['paintOrder'].index('02_Legs') < spec['paintOrder'].index('03_Boots')
+for side, x in [('VL',1825),('VR',2345)]:
+    assert at('Boot_'+side+'_Main',x,4998)[3]==0, 'Boot lining still masks calf insertion'
+    assert at('Boot_'+side+'_Back',x,4998)[3]>190, 'Boot back lining missing'
+    assert at('Leg_'+side+'_Opening',x,4998)[3]>190, 'Calf does not enter the boot opening'
+tail=parts['Tail_Root']
+assert tail['left']+tail['width']<4096-40, 'No canvas margin for tail movement'
+paint=np.array(Image.open(MODEL/'underpaint/semantic/tail-complete-v2.png'))[:,:,3]
+assert not np.any(np.r_[paint[0],paint[-1],paint[:,0],paint[:,-1]]), 'Tail repaint is clipped before separation'
+thigh_steps={}
+for name in ('Leg_VL_Upper','Leg_VR_Upper'):
+    p=parts[name];a=images[name];w=a.shape[1]
+    rows=np.array([a[y,int(w*.3):int(w*.7),:3].mean(axis=0) for y in range(3370-p['top'],3900-p['top'])])
+    step=float(np.abs(np.diff(rows,axis=0)).max());thigh_steps[name]=step
+    assert step<3, name+': horizontal shading/cut-mask discontinuity'
+rgba=images['Collar']
+assert np.all(np.ptp(rgba[:,:,:3].astype(int),axis=2)[rgba[:,:,3]>190]<35), 'Skin/cape residue in collar'
 for name in ('Face', 'Forelock_Red', 'Forelock_Blue', 'Hair_CrownBack', 'Pony_VL', 'Pony_VR', 'Cape_VL', 'Cape_VR', 'Tail_Root',
              'Boot_VL_Main','Boot_VR_Main','Jacket_VL_Pocket','Jacket_VR_Pocket','Cuff_VL','Cuff_VR','ArmBand_VL','ArmBand_VR'):
     rgba = images[name]
@@ -69,6 +86,7 @@ original = ROOT / 'assets/live2d/hana-v6/hana-refined-4k.png'
 digest = hashlib.sha256(original.read_bytes()).hexdigest()
 assert digest == 'f91e25e12a870c202511d97912caa3ed196563a6e8052a314b0f965ab571e00a'
 report = {'assetChecks':'PASS','parts':len(parts),'matchingPaintOverlaps':overlaps,
+          'thighMaxAdjacentRowColorStep':thigh_steps,
           'original4kSha256Unchanged':digest,'fullBodyArtFinished':False}
 (MODEL/'qa/surfaces.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
 print(json.dumps(report,indent=2))

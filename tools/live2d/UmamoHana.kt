@@ -56,6 +56,7 @@ fun edgeRgb(image: RasterImage): RasterImage {
 // Traditional warp/rotation keys, not blend-shape features: Cubism 3.0 playback stays compatible.
 val liveParameters = listOf(
     Parameter(ParameterId("ParamAngleX"),"고개 좌우",-30f,30f,0f), Parameter(ParameterId("ParamAngleY"),"고개 상하",-30f,30f,0f),
+    Parameter(ParameterId("ParamBodyAngleX"),"몸통 좌우 원근",-15f,15f,0f),
     Parameter(ParameterId("ParamEyeBallX"),"시선 좌우",-1f,1f,0f),Parameter(ParameterId("ParamEyeBallY"),"시선 상하",-1f,1f,0f),
     Parameter(ParameterId("ParamEyeLOpen"),"왼쪽 눈 뜨기",0f,1.2f,1f),Parameter(ParameterId("ParamEyeROpen"),"오른쪽 눈 뜨기",0f,1.2f,1f),
     Parameter(ParameterId("ParamEyeSmile"),"눈웃음",0f,1f,0f),Parameter(ParameterId("ParamMouthOpenY"),"입 벌리기",0f,1f,0f),
@@ -65,6 +66,23 @@ val liveParameters = listOf(
     Parameter(ParameterId("ParamTailSwing"),"연결 꼬리 흔들림",-1f,1f,0f),
     Parameter(ParameterId("ParamArmSwingVL"),"왼팔 연결 움직임",-1f,1f,0f),Parameter(ParameterId("ParamArmSwingVR"),"오른팔 연결 움직임",-1f,1f,0f)
 )
+
+// Orthographic surface projection, not a translation of the flattened portrait.
+// ponytail: frontal 2.5D surface; a true profile needs separately painted side keyforms.
+fun headProject(x:Float,y:Float,yaw:Float,pitch:Float,face:Boolean):Pair<Float,Float>{
+    val cx=1910f;val cy=740f;val radius=if(face)440f else 720f
+    val nx=(x-cx)/radius;val ny=(y-cy)/850f
+    val depth=(if(face)420f else 300f)*sqrt((1-nx*nx-.25f*ny*ny).coerceAtLeast(0f))
+    val ax=yaw*.017453293f;val ay=pitch*.017453293f
+    val dx=x-cx;val dy=y-1064f;val z=depth*cos(ax)-dx*sin(ax)
+    // Pitch pivots behind the jaw, not at z=0 in the middle of the face (which stretches the neck).
+    return Pair(cx+dx*cos(ax)+depth*sin(ax),1064f+dy*cos(ay)-(z-280f)*sin(ay))
+}
+fun headRoll(x:Float,y:Float,angle:Float):Pair<Float,Float>{
+    val a=angle*.2f*.017453293f;val dx=x-1960f;val dy=y-1064f
+    return Pair(1960f+dx*cos(a)-dy*sin(a),1064f+dx*sin(a)+dy*cos(a))
+}
+fun mouthLine(x:Float):Float {val d=x-1946f;return 943f-.30f*d-.003f*d*d}
 
 fun attachLiveRig(source: PuppetModel): PuppetModel {
     val deformers=source.deformers.toMutableList()
@@ -79,9 +97,8 @@ fun attachLiveRig(source: PuppetModel): PuppetModel {
         }
         visit(0,IntArray(axes.size),emptyMap());return KeyformGrid(axes,cells)
     }
-    fun warp(id:String,parent:String,box:FloatArray,pivot:FloatArray,axes:List<KeyformAxis>,move:(Float,Float,Map<String,Float>)->Pair<Float,Float>){
+    fun warp(id:String,parent:String,box:FloatArray,pivot:FloatArray,axes:List<KeyformAxis>,rows:Int=8,cols:Int=8,move:(Float,Float,Map<String,Float>)->Pair<Float,Float>){
         boxes[id]=box
-        val rows=8;val cols=8
         val forms=grid(axes){ values ->
             val points=FloatArray((rows+1)*(cols+1)*2)
             for(y in 0..rows)for(x in 0..cols){
@@ -95,13 +112,30 @@ fun attachLiveRig(source: PuppetModel): PuppetModel {
         deformers.add(Deformer.Warp(DeformerId(id),id,DeformerId(parent),null,rows,cols,false,forms))
     }
     fun smooth(t:Float):Float {val u=t.coerceIn(0f,1f);return u*u*(3-2*u)}
-    warp("Live_Head","Hana_Head",floatArrayOf(1000f,-100f,1850f,1650f),headPivot,listOf(axis("ParamAngleX",-30f,0f,30f),axis("ParamAngleY",-30f,0f,30f))){x,y,v->
-        val w=1-smooth((y-1030f)/200f)
-        val yaw=v.getValue("ParamAngleX")*.012f;val pitch=v.getValue("ParamAngleY")*.010f
-        val depth=235f*sqrt((1-((x-1955f)/670f)*((x-1955f)/670f)).coerceIn(.12f,1f))
-        // Coordinated yaw/pitch projection; no yaw-induced diagonal shear or sliding facial fragments.
-        Pair(x+w*((x-1955f)*(cos(yaw)-1)+sin(yaw)*depth),
-             y+w*((y-710f)*(cos(pitch)-1)-sin(pitch)*depth))
+    warp("Live_Body","Hana_Body",floatArrayOf(450f,-150f,3650f,6500f),bodyPivot,
+        listOf(axis("ParamBodyAngleX",-15f,0f,15f),axis("ParamBreath",0f,1f)),24,16){x,y,v->
+        val w=1-smooth((y-2750f)/650f);val a=v.getValue("ParamBodyAngleX")*.017453293f
+        val depth=210f*sqrt((1-((x-1932f)/1500f)*((x-1932f)/1500f)).coerceAtLeast(0f))
+        Pair(x+w*((x-1932f)*(cos(a)-1)+depth*sin(a)),y-w*9f*v.getValue("ParamBreath"))
+    }
+    val headBox=floatArrayOf(1000f,-100f,1850f,1650f)
+    warp("Live_HeadRoll","Live_Body",headBox,headPivot,listOf(axis("ParamAngleZ",-30f,0f,30f)),12,16){x,y,v->
+        headRoll(x,y,v.getValue("ParamAngleZ"))
+    }
+    val angles=listOf(axis("ParamAngleX",-30f,0f,30f),axis("ParamAngleY",-30f,0f,30f))
+    warp("Live_Head","Live_HeadRoll",headBox,headPivot,angles,12,16){x,y,v->
+        headProject(x,y,v.getValue("ParamAngleX"),v.getValue("ParamAngleY"),false)
+    }
+    warp("Live_Face","Live_HeadRoll",floatArrayOf(1400f,150f,1020f,1000f),headPivot,angles,16,16){x,y,v->
+        headProject(x,y,v.getValue("ParamAngleX"),v.getValue("ParamAngleY"),true)
+    }
+    // Top follows the jaw; the bottom belongs to the torso, never to the head rotation.
+    warp("Live_Neck","Live_Body",floatArrayOf(1780f,820f,440f,520f),bodyPivot,
+        angles+axis("ParamAngleZ",-30f,0f,30f),16,8){x,y,v->
+        val w=1-smooth((y-960f)/170f)
+        val q=headProject(x,y,v.getValue("ParamAngleX"),v.getValue("ParamAngleY"),true)
+        val r=headRoll(q.first,q.second,v.getValue("ParamAngleZ"))
+        Pair(x+w*(r.first-x),y+w*(r.second-y))
     }
     warp("Live_Hair","Live_Head",floatArrayOf(1000f,-100f,1850f,1650f),headPivot,listOf(axis("ParamHairSwing",-1f,0f,1f))){x,y,v->
         // Keep the contact roots under the shoulder cape anchored; free curl tips still use the full swing.
@@ -109,31 +143,31 @@ fun attachLiveRig(source: PuppetModel): PuppetModel {
         val contact=nearCape*smooth((y-980f)/150f)*(1-smooth((y-1480f)/150f))
         Pair(x+v.getValue("ParamHairSwing")*35f*smooth((y-400f)/900f)*(1-contact),y)
     }
-    warp("Live_Tail","Hana_Root",floatArrayOf(2350f,2660f,1740f,1900f),rootPivot,listOf(axis("ParamTailSwing",-1f,0f,1f))){x,y,v->
+    warp("Live_Tail","Live_Body",floatArrayOf(2320f,2600f,1780f,2150f),rootPivot,listOf(axis("ParamTailSwing",-1f,0f,1f)),16,12){x,y,v->
         val w=smooth((x-2370f)/1450f);val a=v.getValue("ParamTailSwing")
         Pair(x+a*50f*w,y-a*60f*w)
     }
     for(side in listOf("VL","VR")){
-        val legBox=if(side=="VL")floatArrayOf(1200f,3050f,850f,2200f)else floatArrayOf(1900f,3050f,750f,2200f)
-        warp("Live_Leg_$side","Hana_Root",legBox,rootPivot,listOf(axis("ParamLeg$side",-1f,0f,1f),axis("ParamKnee$side",-1f,0f,1f))){x,y,v->
+        val legBox=if(side=="VL")floatArrayOf(1200f,2950f,950f,3250f)else floatArrayOf(1900f,2950f,800f,3250f)
+        warp("Live_Leg_$side","Live_Body",legBox,rootPivot,listOf(axis("ParamLeg$side",-1f,0f,1f),axis("ParamKnee$side",-1f,0f,1f)),24,8){x,y,v->
             val upper=smooth((y-3200f)/1000f);val lower=smooth((y-4100f)/650f)
-            val ankle=1-smooth((y-4800f)/250f)
+            val ankle=1-smooth((y-5100f)/900f)
             Pair(x+(v.getValue("ParamLeg$side")*20f*upper+v.getValue("ParamKnee$side")*15f*lower)*ankle,y)
         }
         val b=if(side=="VL")floatArrayOf(500f,1200f,1300f,2350f)else floatArrayOf(2280f,1200f,1300f,2350f)
-        warp("Live_Arm_$side","Hana_Body",b,bodyPivot,listOf(axis("ParamArmSwing$side",-1f,0f,1f))){x,y,v->
+        warp("Live_Arm_$side","Live_Body",b,bodyPivot,listOf(axis("ParamArmSwing$side",-1f,0f,1f))){x,y,v->
             val w=smooth((y-1300f)/1800f);val a=v.getValue("ParamArmSwing$side")
             Pair(x+a*35f*w,y-abs(a)*7f*w)
         }
         val eye=if(side=="VL")floatArrayOf(1590f,730f,290f,170f)else floatArrayOf(1930f,635f,300f,200f)
         val xc=if(side=="VL")1777f else 2059f;val yc=if(side=="VL")818f else 754f;val slope=if(side=="VL")-.055f else -.20f
         val open="ParamEye${if(side=="VL")"L" else "R"}Open"
-        warp("Live_Eye_$side","Live_Head",eye,headPivot,listOf(axis(open,0f,1f,1.2f),axis("ParamEyeSmile",0f,1f))){x,y,v->
+        warp("Live_Eye_$side","Live_Face",eye,headPivot,listOf(axis(open,0f,1f,1.2f),axis("ParamEyeSmile",0f,1f))){x,y,v->
             val o=v.getValue(open);val u=(x-xc)/130f
             val line=yc+slope*(x-xc)-(3f+v.getValue("ParamEyeSmile")*12f)*(1-u*u)
             Pair(x,line+(y-line)*(.04f+.96f*o))
         }
-        warp("Live_Lashes_$side","Live_Head",eye,headPivot,listOf(axis(open,0f,1f,1.2f),axis("ParamEyeSmile",0f,1f))){x,y,v->
+        warp("Live_Lashes_$side","Live_Face",eye,headPivot,listOf(axis(open,0f,1f,1.2f),axis("ParamEyeSmile",0f,1f))){x,y,v->
             val o=v.getValue(open);val u=(x-xc)/130f
             val closed=yc+slope*(x-xc)+(4f-v.getValue("ParamEyeSmile")*10f)*(1-u*u)+(y-yc+20f)*.24f
             Pair(x,closed+(y-closed)*o)
@@ -143,17 +177,19 @@ fun attachLiveRig(source: PuppetModel): PuppetModel {
             Pair(x+v.getValue("ParamEyeBallX")*7f,y-v.getValue("ParamEyeBallY")*5f)
         }
         val brow=if(side=="VL")floatArrayOf(1651f,651f,117f,88f)else floatArrayOf(1945f,576f,141f,93f)
-        warp("Live_Brow_$side","Live_Head",brow,headPivot,listOf(axis("ParamBrowForm",-1f,0f,1f),axis("ParamBrowY",-1f,0f,1f))){x,y,v->
+        warp("Live_Brow_$side","Live_Face",brow,headPivot,listOf(axis("ParamBrowForm",-1f,0f,1f),axis("ParamBrowY",-1f,0f,1f))){x,y,v->
             val direction=if(side=="VL")1f else -1f
             Pair(x,y+direction*v.getValue("ParamBrowForm")*.30f*(x-brow[0]-brow[2]/2)-v.getValue("ParamBrowY")*16f)
         }
     }
     val mouthBox=floatArrayOf(1855f,883f,182f,112f)
-    for(open in listOf(false,true))warp(if(open)"Live_MouthOpen" else "Live_MouthClosed","Live_Head",mouthBox,headPivot,
+    for(open in listOf(false,true))warp(if(open)"Live_MouthOpen" else "Live_MouthClosed","Live_Face",mouthBox,headPivot,
         if(open)listOf(axis("ParamMouthOpenY",0f,.5f,1f),axis("ParamMouthForm",-1f,0f,1f))else listOf(axis("ParamMouthForm",-1f,0f,1f))){x,y,v->
-        val f=v.getValue("ParamMouthForm");val u=(x-1946f)/65f
-        val my=if(open)913f+(y-913f)*(.1f+.9f*v.getValue("ParamMouthOpenY")) else y
-        Pair(1946f+(x-1946f)*(1+.12f*f),my+f*24f*(1-u*u))
+        val f=v.getValue("ParamMouthForm");val u=((x-1946f)/65f).coerceIn(-1f,1f)
+        val top=924f-.135f*(x-1946f)
+        val my=if(open)mouthLine(x)+(y-top)*(.01f+.99f*v.getValue("ParamMouthOpenY")) else y
+        // Expression moves corners, not the whole mouth up/down away from the nose.
+        Pair(1946f+(x-1946f)*(1+.08f*f),my-f*18f*u*u)
     }
     val scalars=fun(id:String,keys:FloatArray,values:FloatArray):KeyformGrid<ChannelValue> =
         KeyformGrid(listOf(KeyformAxis(ParameterId(id),keys)),keys.indices.map{KeyformCell(intArrayOf(it),ChannelValue.Scalar(values[it]))})
@@ -162,7 +198,7 @@ fun attachLiveRig(source: PuppetModel): PuppetModel {
         val name=d.name;var parent:String?=null;var box:FloatArray?=null;var channels=d.channelGrids;var masked=d.maskedBy
         when{
             name.startsWith("Tail_")->parent="Live_Tail"
-            name.startsWith("Leg_")->parent="Live_Leg_${if(name.contains("_VL"))"VL" else "VR"}"
+            name.startsWith("Leg_")||name.startsWith("Boot_")->parent="Live_Leg_${if(name.contains("_VL"))"VL" else "VR"}"
             Regex("^(Sleeve|ArmBand|Shoulder|Cuff|Hand)").containsMatchIn(name)->parent="Live_Arm_${if(name.contains("_VL"))"VL" else "VR"}"
             name.startsWith("Brow_")->parent="Live_Brow_${if(name.contains("_VL"))"VL" else "VR"}"
             name.startsWith("Mouth")->parent=if(name=="Mouth_Open")"Live_MouthOpen" else "Live_MouthClosed"
@@ -176,11 +212,14 @@ fun attachLiveRig(source: PuppetModel): PuppetModel {
             }
             name.startsWith("Pony_")->parent="Live_Hair"
             Regex("^(Hair_|Forelock_)").containsMatchIn(name)->parent="Live_Head"
-            name in listOf("Face","Neck","Nose")||name.startsWith("HairClip_")||name.endsWith("_Tear")->parent="Live_Head"
+            name=="Neck"->parent="Live_Neck"
+            name in listOf("Face","Nose")||name.endsWith("_Tear")->parent="Live_Face"
+            name.startsWith("HairClip_")->parent="Live_Head"
+            else->parent="Live_Body"
         }
         if(name.startsWith("Mouth"))channels=ChannelGrids(mapOf(FormChannel.OPACITY to scalars("ParamMouthOpenY",floatArrayOf(0f,.08f,.3f,1f),if(name=="Mouth_Open")floatArrayOf(0f,.5f,1f,1f)else floatArrayOf(1f,0f,0f,0f))))
         if(name.endsWith("_Tear"))channels=ChannelGrids(mapOf(FormChannel.OPACITY to scalars("ParamTears",floatArrayOf(0f,1f),floatArrayOf(0f,1f))))
-        if(parent==null)d else{
+        run{
             val rect=box?:boxes.getValue(parent);val mesh=d.mesh!!
             // Store normalized rest coordinates directly; subtracting large pixel positions loses precision.
             val normalized=FloatArray(mesh.positions.size){i->(mesh.positions[i]-rect[i%2])/rect[2+i%2]}
@@ -239,8 +278,8 @@ fun main(args: Array<String>) {
     val drawables = imported.puppet.drawables.map { d ->
         val quad = checkNotNull(d.mesh)
         // ponytail: regular subdivision supports the initial rotation rig; contour-tailored topology needs a separate art pass.
-        val nx = if(live&&d.name.startsWith("Mouth"))16 else if(live&&d.name.startsWith("Eye_"))12 else ceil(abs(quad.positions[2] - quad.positions[0]) / 100f).toInt().coerceIn(2, 24)
-        val ny = if(live&&d.name.startsWith("Mouth"))8 else if(live&&d.name.startsWith("Eye_"))6 else ceil(abs(quad.positions[5] - quad.positions[1]) / 100f).toInt().coerceIn(2, 32)
+        val nx = if(live&&d.name=="Face")32 else if(live&&d.name.startsWith("Mouth"))16 else if(live&&d.name.startsWith("Eye_"))12 else ceil(abs(quad.positions[2] - quad.positions[0]) / 100f).toInt().coerceIn(2, 24)
+        val ny = if(live&&d.name=="Face")32 else if(live&&d.name=="Neck")16 else if(live&&d.name.startsWith("Mouth"))8 else if(live&&d.name.startsWith("Eye_"))6 else ceil(abs(quad.positions[5] - quad.positions[1]) / 100f).toInt().coerceIn(2, 32)
         val positions = mutableListOf<Float>(); val uvs = mutableListOf<Float>(); val triangles = mutableListOf<Int>()
         fun sample(a: FloatArray, u: Float, v: Float, axis: Int) =
             a[axis] * (1-u)*(1-v) + a[2+axis]*u*(1-v) + a[4+axis]*u*v + a[6+axis]*(1-u)*v
@@ -267,12 +306,60 @@ fun main(args: Array<String>) {
     for (d in model.drawables) {
         val expected = originalMeshes.getValue(d.name).positions.copyOf()
         // The invisible open-mouth texture is deliberately collapsed at its closed key.
-        if(live&&d.name=="Mouth_Open")for(i in 1 until expected.size step 2)expected[i]=913f+(expected[i]-913f)*.1f
+        if(live&&d.name=="Mouth_Open")for(i in 1 until expected.size step 2){
+            val x=expected[i-1];val cell=((x-1855f)/22.75f).toInt();val a=1855f+cell*22.75f;val t=(x-a)/22.75f
+            // The export uses linear lattice interpolation, not an analytic quadratic between columns.
+            val line=mouthLine(a)*(1-t)+mouthLine(a+22.75f)*t
+            expected[i]=line+(expected[i]-(924f-.135f*(x-1946f)))*.01f
+        }
         val actual = neutral.worldPositions.getValue(d.id)
         val maxError=actual.indices.maxOf{abs(actual[it]-if(it%2==0)expected[it]else -expected[it])}
         check(maxError < .02f) { "Neutral moved: ${d.name}; max error $maxError; expected ${expected.toList()}; actual ${actual.toList()}" }
     }
     println("Neutral-pose check: PASS; ${drawables.size} meshes, ${deformers.size} rotation deformers")
+    if(live){
+        fun point(name:String,x:Float,y:Float,pose:Map<ParameterId,Float>):Pair<Float,Float>{
+            val d=model.drawables.first{it.name==name};val m=originalMeshes.getValue(name)
+            val world=eval.evaluate(model,pose).worldPositions.getValue(d.id)
+            for(i in m.indices.indices step 3){
+                val a=m.indices[i]*2;val b=m.indices[i+1]*2;val c=m.indices[i+2]*2;val p=m.positions
+                val den=(p[b+1]-p[c+1])*(p[a]-p[c])+(p[c]-p[b])*(p[a+1]-p[c+1])
+                val u=((p[b+1]-p[c+1])*(x-p[c])+(p[c]-p[b])*(y-p[c+1]))/den
+                val v=((p[c+1]-p[a+1])*(x-p[c])+(p[a]-p[c])*(y-p[c+1]))/den;val w=1-u-v
+                if(minOf(u,v,w)>=-.0001f)return Pair(u*world[a]+v*world[b]+w*world[c],u*world[a+1]+v*world[b+1]+w*world[c+1])
+            }
+            error("No mesh at landmark $name ($x,$y)")
+        }
+        var jointError=0f;var neckError=0f;var attachmentError=0f
+        for(x in listOf(-30f,0f,30f))for(y in listOf(-30f,0f,30f)){
+            val pose=mapOf(ParameterId("ParamAngleX") to x,ParameterId("ParamAngleY") to y,ParameterId("ParamAngleZ") to -x/4)
+            val n=point("Neck",1980f,1260f,pose);val rest=point("Neck",1980f,1260f,emptyMap())
+            neckError=maxOf(neckError,abs(n.first-rest.first),abs(n.second-rest.second))
+            for((name,xy)in listOf("Eye_VL_Sclera" to Pair(1777f,818f),"Eye_VR_Sclera" to Pair(2059f,754f),"Mouth" to Pair(1946f,943f))){
+                val a=point(name,xy.first,xy.second,pose);val b=point("Face",xy.first,xy.second,pose)
+                attachmentError=maxOf(attachmentError,abs(a.first-b.first),abs(a.second-b.second))
+            }
+        }
+        for(side in listOf("VL","VR"))for(a in listOf(-1f,0f,1f)){
+            val pose=mapOf(ParameterId("ParamLeg$side") to a,ParameterId("ParamKnee$side") to -a)
+            for((one,two,y)in listOf(Triple("Leg_${side}_Upper","Leg_${side}_Lower",4140f),Triple("Leg_${side}_Opening","Boot_${side}_Main",5030f))){
+                val x=if(y>4900f){if(side=="VL")1825f else 2345f}else if(side=="VL")1750f else 2240f
+                val p=point(one,x,y,pose);val q=point(two,x,y,pose)
+                jointError=maxOf(jointError,abs(p.first-q.first),abs(p.second-q.second))
+            }
+        }
+        check(neckError<.02f){"Collar anchor moves with the head: $neckError"}
+        check(attachmentError<4f){"Facial feature detached from skin: $attachmentError"}
+        check(jointError<1f){"Knee/boot transforms disagree: $jointError"}
+        val right=mapOf(ParameterId("ParamAngleX") to 30f)
+        val cheek=point("Face",2310f,800f,right);val nose=point("Face",1910f,800f,right)
+        check(abs((nose.first-1910f)-(cheek.first-2310f))>100f){"Head is translating as a flat card"}
+        File(folder,"qa/anatomy.json").writeText(buildJsonObject{
+            put("collarAnchorMaxErrorPixels",neckError);put("featureToSkinMaxErrorPixels",attachmentError)
+            put("kneeBootJointMaxErrorPixels",jointError);put("projectionNotFlatTranslation",true)
+        }.toString()+"\n")
+        println("Anatomical attachment checks: PASS; neck=$neckError, face=$attachmentError, joints=$jointError")
+    }
     val textures=imported.rasterByTile.mapValues{(_,r)->edgeRgb(RasterImage(r.width,r.height,r.rgba))}
     // Two-pixel editor gutters bleed at the app's 300 px display size (4K textures use mipmaps).
     val options=AtlasPackOptions(gutter=32,extrude=32)

@@ -1,6 +1,6 @@
 {
   "workflow": "painted-material-surfaces-before-detail-separation",
-  "processedParts": 191,
+  "processedParts": 193,
   "trimmedPixelsByPart": {
     "Boot_VL_Main": 4933,
     "Boot_VR_Main": 2212,

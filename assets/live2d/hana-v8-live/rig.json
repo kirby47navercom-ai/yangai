@@ -695,7 +695,7 @@
             "file": "parts/Tail_Root.png",
             "left": 2350,
             "top": 2650,
-            "width": 1742,
+            "width": 1690,
             "height": 2020,
             "defaultOpacity": 1
         },
@@ -715,7 +715,7 @@
             "file": "parts/Tail_RisingArc.png",
             "left": 3270,
             "top": 3410,
-            "width": 822,
+            "width": 770,
             "height": 1260,
             "defaultOpacity": 1
         },
@@ -724,18 +724,38 @@
             "bone": "Tail_Tip",
             "file": "parts/Tail_TipWithTransition.png",
             "left": 3210,
-            "top": 2650,
-            "width": 882,
-            "height": 1250,
+            "top": 2729,
+            "width": 830,
+            "height": 1171,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VL_Back",
+            "bone": "Foot_VL",
+            "file": "parts/Boot_VL_Back.png",
+            "left": 1576,
+            "top": 4950,
+            "width": 430,
+            "height": 120,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VR_Back",
+            "bone": "Foot_VR",
+            "file": "parts/Boot_VR_Back.png",
+            "left": 2167,
+            "top": 4950,
+            "width": 428,
+            "height": 120,
             "defaultOpacity": 1
         },
         {
             "id": "Leg_VL_Upper",
             "bone": "Thigh_VL",
             "file": "parts/Leg_VL_Upper.png",
-            "left": 1377,
+            "left": 1359,
             "top": 3000,
-            "width": 545,
+            "width": 523,
             "height": 1230,
             "defaultOpacity": 1
         },
@@ -743,9 +763,9 @@
             "id": "Leg_VR_Upper",
             "bone": "Thigh_VR",
             "file": "parts/Leg_VR_Upper.png",
-            "left": 1958,
+            "left": 1977,
             "top": 3000,
-            "width": 523,
+            "width": 505,
             "height": 1230,
             "defaultOpacity": 1
         },
@@ -753,9 +773,9 @@
             "id": "Leg_VL_Lower",
             "bone": "Shin_VL",
             "file": "parts/Leg_VL_Lower.png",
-            "left": 1519,
+            "left": 1562,
             "top": 4060,
-            "width": 394,
+            "width": 357,
             "height": 1080,
             "defaultOpacity": 1
         },
@@ -763,9 +783,9 @@
             "id": "Leg_VR_Lower",
             "bone": "Shin_VR",
             "file": "parts/Leg_VR_Lower.png",
-            "left": 1999,
+            "left": 2029,
             "top": 4060,
-            "width": 496,
+            "width": 449,
             "height": 1080,
             "defaultOpacity": 1
         },
@@ -773,9 +793,9 @@
             "id": "Leg_VL_Opening",
             "bone": "Shin_VL",
             "file": "parts/Leg_VL_Opening.png",
-            "left": 1636,
+            "left": 1666,
             "top": 4950,
-            "width": 259,
+            "width": 253,
             "height": 190,
             "defaultOpacity": 1
         },
@@ -783,9 +803,9 @@
             "id": "Leg_VR_Opening",
             "bone": "Shin_VR",
             "file": "parts/Leg_VR_Opening.png",
-            "left": 2260,
+            "left": 2235,
             "top": 4950,
-            "width": 224,
+            "width": 243,
             "height": 190,
             "defaultOpacity": 1
         },
@@ -883,9 +903,9 @@
             "id": "Boot_VR_LowerStrap",
             "bone": "Foot_VR",
             "file": "parts/Boot_VR_LowerStrap.png",
-            "left": 2181,
+            "left": 2180,
             "top": 5202,
-            "width": 337,
+            "width": 338,
             "height": 147,
             "defaultOpacity": 1
         },
@@ -904,9 +924,9 @@
             "bone": "Skirt_VL",
             "file": "parts/Skirt_VL_Outer.png",
             "left": 1080,
-            "top": 2048,
+            "top": 2047,
             "width": 620,
-            "height": 1160,
+            "height": 1161,
             "defaultOpacity": 1
         },
         {
@@ -916,7 +936,7 @@
             "left": 2132,
             "top": 2061,
             "width": 588,
-            "height": 1154,
+            "height": 1155,
             "defaultOpacity": 1
         },
         {
@@ -995,7 +1015,7 @@
             "file": "parts/Waist_Corset.png",
             "left": 1600,
             "top": 1820,
-            "width": 639,
+            "width": 638,
             "height": 300,
             "defaultOpacity": 1
         },
@@ -1175,7 +1195,7 @@
             "file": "parts/Jacket_VL_InsideHem.png",
             "left": 1447,
             "top": 2027,
-            "width": 187,
+            "width": 189,
             "height": 127,
             "defaultOpacity": 1
         },
@@ -1183,9 +1203,9 @@
             "id": "Jacket_VR_InsideHem",
             "bone": "Jacket_VR",
             "file": "parts/Jacket_VR_InsideHem.png",
-            "left": 2130,
+            "left": 2129,
             "top": 2027,
-            "width": 314,
+            "width": 315,
             "height": 127,
             "defaultOpacity": 1
         },
@@ -1253,9 +1273,9 @@
             "id": "Pony_VL_White_Outer",
             "bone": "Pony_VL",
             "file": "parts/Pony_VL_White_Outer.png",
-            "left": 1171,
+            "left": 1170,
             "top": 373,
-            "width": 333,
+            "width": 334,
             "height": 403,
             "defaultOpacity": 1
         },
@@ -1404,9 +1424,9 @@
             "bone": "Body",
             "file": "parts/Collar.png",
             "left": 1804,
-            "top": 1061,
-            "width": 348,
-            "height": 236,
+            "top": 1064,
+            "width": 347,
+            "height": 233,
             "defaultOpacity": 1
         },
         {
@@ -2456,7 +2476,7 @@
             "left": 1420,
             "top": 231,
             "width": 400,
-            "height": 834,
+            "height": 835,
             "defaultOpacity": 1
         },
         {

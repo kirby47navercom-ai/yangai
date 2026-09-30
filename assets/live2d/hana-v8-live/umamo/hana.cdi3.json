@@ -322,6 +322,11 @@
 			"Name": "고개 상하"
 		},
 		{
+			"Id": "ParamBodyAngleX",
+			"GroupId": "",
+			"Name": "몸통 좌우 원근"
+		},
+		{
 			"Id": "ParamEyeBallX",
 			"GroupId": "",
 			"Name": "시선 좌우"
@@ -493,6 +498,10 @@
 		},
 		{
 			"Id": "Part24",
+			"Name": "01_BootRear"
+		},
+		{
+			"Id": "Part25",
 			"Name": "01_Tail"
 		}
 	],
@@ -1247,18 +1256,26 @@
 		},
 		{
 			"Id": "ArtMesh188",
-			"Name": "Tail_TipWithTransition"
+			"Name": "Boot_VR_Back"
 		},
 		{
 			"Id": "ArtMesh189",
-			"Name": "Tail_RisingArc"
+			"Name": "Boot_VL_Back"
 		},
 		{
 			"Id": "ArtMesh190",
-			"Name": "Tail_LowerArc"
+			"Name": "Tail_TipWithTransition"
 		},
 		{
 			"Id": "ArtMesh191",
+			"Name": "Tail_RisingArc"
+		},
+		{
+			"Id": "ArtMesh192",
+			"Name": "Tail_LowerArc"
+		},
+		{
+			"Id": "ArtMesh193",
 			"Name": "Tail_Root"
 		}
 	]
