@@ -56,8 +56,13 @@ class AvatarTests(unittest.TestCase):
         clock = [0.0]
         state = AvatarState(clock=lambda: clock[0], rng=random.Random(3))
         pose = state.pose(20, -20)
-        self.assertEqual(pose['ParamAngleX'], 20)
-        self.assertEqual(pose['ParamAngleY'], 15)
+        self.assertEqual(pose['ParamAngleX'], 0)
+        self.assertEqual(pose['ParamAngleY'], 0)
+        for _ in range(20):
+            clock[0] += .05
+            pose = state.pose(20, -20)
+        self.assertGreater(pose['ParamAngleX'], 19)
+        self.assertGreater(pose['ParamAngleY'], 14)
         self.assertEqual(pose['ParamMouthOpenY'], 0)
         clock[0] = state.blink_at + .095
         self.assertLess(state.pose()['ParamEyeLOpen'], .05)
@@ -82,6 +87,23 @@ class AvatarTests(unittest.TestCase):
         self.assertEqual(state.expression, 'neutral')
         state.audio_level(float('nan'))
         self.assertEqual(state.level, 0)
+
+    def test_eye_led_head_motion_and_back_hair_settle_without_idle_sliding(self):
+        clock = [0.0]
+        state = AvatarState(clock=lambda: clock[0], rng=random.Random(4))
+        state.pose()
+        for _ in range(3):
+            clock[0] += 1/30
+            pose = state.pose(1, 0)
+        self.assertGreater(pose['ParamEyeBallX']/.65, pose['ParamAngleX']/20)
+        self.assertLess(abs(pose['ParamAngleZ']), 5)
+        self.assertGreater(abs(pose['ParamHairSwing']), .01)
+        for _ in range(240):
+            clock[0] += 1/30
+            pose = state.pose(1, 0)
+            self.assertTrue(all(math.isfinite(v) for v in pose.values()))
+            self.assertLessEqual(abs(pose['ParamHairSwing']), 1)
+        self.assertLess(abs(pose['ParamHairSwing']), .001)
 
     def test_playback_levels_follow_pcm_not_synthesis_or_cancelled_audio(self):
         import winsound

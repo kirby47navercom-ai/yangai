@@ -27,6 +27,7 @@ class AvatarState:
         self.started = clock()
         self.last = self.started
         self.blink_at = self.started + self.rng.uniform(2.8, 5.5)
+        self.hair_position = self.hair_velocity = 0.0
 
     def set_expression(self, name):
         self.expression = name if name in EXPRESSIONS else "neutral"
@@ -53,22 +54,30 @@ class AvatarState:
         audio = self.level if now - self.level_at < .16 else 0.0
         target = {
             "ParamAngleX": x * 20, "ParamAngleY": -y * 15,
+            "ParamAngleZ": -x * 5 + audio * math.sin(t * 5) * .6,
             "ParamEyeBallX": x * .65, "ParamEyeBallY": -y * .5,
             "ParamEyeLOpen": eye * blink, "ParamEyeROpen": eye * blink,
             "ParamEyeSmile": eye_smile, "ParamMouthOpenY": audio,
             "ParamMouthForm": mouth, "ParamBrowForm": brow, "ParamBrowY": height,
-            "ParamTears": tears, "ParamBodyAngleZ": math.sin(t * .65) * .22,
+            "ParamTears": tears, "ParamBodyAngleZ": -x * .7 + math.sin(t * .65) * .16,
             "ParamBreath": (math.sin(t * 1.7) + 1) * .35,
-            "ParamHairSwing": math.sin(t * 1.3 - .6) * .22,
             "ParamTailSwing": math.sin(t * .85 - 1.2) * .25,
             "ParamArmSwingVL": math.sin(t * 1.1) * (.08 + audio * .16),
             "ParamArmSwingVR": math.sin(t * 1.1 + .6) * (.08 + audio * .16),
         }
+        previous_head = self.values.get("ParamAngleX", 0.0)
         for key, value in target.items():
             # Fast blink/lip response; slower head/face transitions avoid snapping between sentences.
-            speed = 35 if key in ("ParamEyeLOpen", "ParamEyeROpen", "ParamMouthOpenY") else 7
-            previous = self.values.get(key, value)
+            speed = 35 if key in ("ParamEyeLOpen", "ParamEyeROpen", "ParamMouthOpenY") else 20 if key.startswith("ParamEyeBall") else 4 if key.startswith("ParamAngle") else 7
+            previous = self.values.get(key, 0.0 if key.startswith(("ParamAngle", "ParamEyeBall")) else value)
             self.values[key] = previous + (value - previous) * (1 - math.exp(-speed * dt))
+        # Secondary BACK hair follows head velocity; front bangs never slide independently over skin.
+        drive = max(-.8, min(.8, -(self.values['ParamAngleX'] - previous_head) / max(dt, .001) * .014))
+        for _ in range(4):
+            step = dt / 4
+            self.hair_velocity += (38 * (drive - self.hair_position) - 11 * self.hair_velocity) * step
+            self.hair_position += self.hair_velocity * step
+        self.values['ParamHairSwing'] = max(-1.0, min(1.0, self.hair_position))
         return dict(self.values)
 
 

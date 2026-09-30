@@ -1,10 +1,10 @@
 {
     "tool": "Umamo 0.3.0-dev",
-    "parts": 194,
-    "rotationDeformers": 65,
-    "parameters": 82,
-    "meshVertices": 7077,
-    "atlasPages": 2,
+    "parts": 191,
+    "rotationDeformers": 62,
+    "parameters": 79,
+    "meshVertices": 7723,
+    "atlasPages": 3,
     "cmo3ReadBack": "PASS",
     "moc3Decode": "PASS",
     "neutralPose": "PASS",
@@ -13,9 +13,10 @@
     "live2dRuntimeTested": false,
     "moc3PoseMaxErrorPixels": 0.0,
     "nativePaintOrder": "PASS",
-    "savedPoseChecks": 102,
+    "savedPoseChecks": 99,
+    "atlasGutterPixels": 32,
     "eyeBlinkGazeMouthKeys": true,
-    "warpDeformers": 15,
+    "warpDeformers": 17,
     "eyeBlinkGazeMouthPhysicsFinished": false,
     "largeHiddenAnatomyRepainted": false
 }

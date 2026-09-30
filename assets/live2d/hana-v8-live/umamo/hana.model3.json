@@ -4,7 +4,8 @@
 		"Moc": "hana.moc3",
 		"Textures": [
 			"hana-textures/texture_0.png",
-			"hana-textures/texture_1.png"
+			"hana-textures/texture_1.png",
+			"hana-textures/texture_2.png"
 		],
 		"DisplayInfo": "hana.cdi3.json"
 	}

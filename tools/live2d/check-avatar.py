@@ -56,6 +56,13 @@ try:
             "ParamEyeBallY": direction, "ParamHairSwing": direction, "ParamTailSwing": direction,
             "ParamArmSwingVL": direction, "ParamArmSwingVR": -direction, "ParamBreath": 1})
         assert image.tobytes() != neutral.tobytes()
+    directions=Image.new('RGBA',(470*3,435*3),'#172033')
+    for i,(yaw,pitch) in enumerate((x,y) for y in (-15,0,15) for x in (-20,0,20)):
+        pose={'ParamEyeLOpen':1,'ParamEyeROpen':1,'ParamAngleX':yaw,'ParamAngleY':pitch,
+              'ParamAngleZ':-yaw/4,'ParamEyeBallX':yaw/30,'ParamEyeBallY':pitch/30,'ParamHairSwing':yaw/20}
+        face=render('head-'+str(i),pose,3,(0,-1.8))
+        directions.paste(face.crop((210,220,680,655)),(i%3*470,i//3*435))
+    directions.save(folder/'qa/runtime-head-directions.png')
     clock, frames = [0.0], []
     animation = AvatarState(clock=lambda: clock[0], rng=random.Random(4))
     for i in range(96):

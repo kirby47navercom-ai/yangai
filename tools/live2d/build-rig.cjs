@@ -63,10 +63,11 @@ function makeSpec(parts){
   return {canvas:[W,H],coordinates:'PSD native pixels; rotation hierarchy used by UmamoHana.kt',bones,parts:parts.map(p=>({id:p.id,bone:p.bone,file:p.file,left:p.left,top:p.top,width:p.width,height:p.height,defaultOpacity:p.defaultOpacity??1})),nativeModelCreated:false};
 }
 async function prepare(){
-  const manifest=read(path.join(dest,'parts.json')),parts=manifest.parts,spec=makeSpec(parts),layers=[];
+  const manifest=read(path.join(dest,'parts.json')),groups=manifest.paintOrder||[...new Set(manifest.parts.map(p=>p.group))];
+  // Repaired hidden surfaces overlap other groups. Compose in the same depth order as the PSD.
+  const parts=[...manifest.parts].sort((a,b)=>groups.indexOf(a.group)-groups.indexOf(b.group)),spec=makeSpec(parts),layers=[];
   const c=createCanvas(W,H),ctx=c.getContext('2d');
   for(const p of parts){const file=path.join(dest,p.file),{data,info}=await sharp(file).ensureAlpha().raw().toBuffer({resolveWithObject:true});layers.push({name:p.id,left:p.left,top:p.top,opacity:p.defaultOpacity??1,blendMode:'normal',imageData:{width:info.width,height:info.height,data:new Uint8ClampedArray(data)}});ctx.globalAlpha=p.defaultOpacity??1;ctx.drawImage(await loadImage(file),p.left,p.top);}ctx.globalAlpha=1;
-  const groups=[...new Set(parts.map(p=>p.group))];
   // ag-psd stores children bottom-to-top. Reversing them makes skin/fabric cover their details.
   const children=groups.map(g=>({name:g,opened:false,children:layers.filter(l=>parts.find(p=>p.id===l.name).group===g)}));
   // Native full circular eye masters are retained for the gaze pass, not shown as unclipped discs.
@@ -108,7 +109,9 @@ function draw(){ctx.setTransform(.5,0,0,.5,0,0);ctx.clearRect(0,0,4096,6144);for
 document.getElementById('skeleton').onchange=draw;document.getElementById('reset').onclick=()=>{for(const b of rig.bones)values[b.id]=0;for(const input of document.querySelectorAll('input[type=range]'))input.value=0;document.getElementById('play').checked=false;draw()};
 Promise.all(rig.parts.map(p=>new Promise((resolve,reject)=>{const img=new Image;img.onload=()=>{images.set(p.id,img);resolve()};img.onerror=reject;img.src=p.file}))).then(()=>{draw();const start=performance.now();function tick(){if(document.getElementById('play').checked){const t=(performance.now()-start)/1000;for(const b of rig.bones)values[b.id]=Math.sin(t*(b.id.includes('Detail')?1.8:1.0)+b.pivot[0]/700)*.3;draw()}requestAnimationFrame(tick)}tick()}).catch(()=>document.getElementById('controls').textContent='PNG를 불러오지 못했어요. preview.html과 parts 폴더를 함께 보관해 주세요.');
 </script></html>`;
-  fs.writeFileSync(path.join(dest,'preview.html'),preview);
+  // A rotation-only paper preview is misleading once the live warp model owns the motion.
+  const nativePreview=`<!doctype html><html lang="ko"><meta charset="utf-8"><title>하나 — 네이티브 동작 검사</title><style>body{margin:24px;background:#172033;color:#eee;font:16px sans-serif}main{display:flex;gap:24px;align-items:start}img{max-width:100%;height:auto}.motion{max-height:85vh}article{max-width:650px}p{line-height:1.6}a{color:#a4ceff}</style><h1>하나 · 실제 재생기 검사</h1><p>아래 영상은 MOC3를 실제 재생기로 렌더링한 무음 시험입니다. 마우스 추적과 표정 버튼은 프로젝트 루트의 check_hana_avatar.vbs에서 확인하십시오. 전체 정밀 재작화와 리깅의 최종 완성본은 아닙니다.</p><main><img class="motion" src="qa/motion-preview.webp" alt="실제 모델의 표정과 동작 시험"><article><h2>전신 파츠 재조합</h2><a href="neutral.png">원본 크기의 재조합 그림</a><h2>고개 9방향</h2><img src="qa/runtime-head-directions.png" alt="좌우 상하 고개 검사"><h2>표정</h2><img src="qa/runtime-expressions.png" alt="7개 표정 검사"><p>개별 PNG를 임의로 회전시키던 이전 미리보기는 이 모델의 연결 워프와 일치하지 않아 사용하지 않습니다. 파츠·메시 편집 파일은 umamo/hana.cmo3입니다.</p><a href="README.md">구성과 남은 작업</a></article></main></html>`;
+  fs.writeFileSync(path.join(dest,'preview.html'),manifest.semanticRepair?nativePreview:preview);
   fs.writeFileSync(path.join(dest,'neutral.png'),await c.encode('png'));
   const qa=createCanvas(1536,1536),qc=qa.getContext('2d');qc.fillStyle='#26313c';qc.fillRect(0,0,1536,1536);qc.drawImage(c,256,0,1024,1536);
   qc.lineWidth=2;qc.strokeStyle='#72dfa3';

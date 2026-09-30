@@ -2,11 +2,15 @@
 import java.io.File
 import kotlin.math.abs
 import kotlin.math.ceil
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlinx.serialization.json.*
 import org.umamo.format.art.*
 import org.umamo.format.psd.PsdReader
 import org.umamo.format.png.PngCodec
 import org.umamo.format.raster.RasterImage
+import org.umamo.format.atlas.*
 import org.umamo.format.cmo3.Cmo3
 import org.umamo.format.cmo3.model.custom.CModelSource
 import org.umamo.format.moc3.Moc3
@@ -15,11 +19,16 @@ import org.umamo.interop.cmo3.*
 import org.umamo.interop.moc3.Moc3Sidecars
 import org.umamo.interop.moc3.`import`.Moc3Import
 import org.umamo.render.DecodedImage
+import org.umamo.render.atlasCompositionOf
+import org.umamo.render.atlasPlacementFromPack
+import org.umamo.render.generatedPuppetTextures
+import org.umamo.render.meshReserveByTile
 import org.umamo.render.withTexturePagesFrom
 import org.umamo.render.eval.CpuDeformationEvaluator
 import org.umamo.render.eval.renderOrder
 import org.umamo.runtime.model.*
-import org.umamo.ui.model.packModelAtOpen
+import org.umamo.ui.model.PackedAtOpen
+import org.umamo.edit.withAtlasRepack
 
 fun JsonObject.string(key: String) = getValue(key).jsonPrimitive.content
 fun JsonObject.number(key: String) = getValue(key).jsonPrimitive.float
@@ -87,17 +96,30 @@ fun attachLiveRig(source: PuppetModel): PuppetModel {
     }
     fun smooth(t:Float):Float {val u=t.coerceIn(0f,1f);return u*u*(3-2*u)}
     warp("Live_Head","Hana_Head",floatArrayOf(1000f,-100f,1850f,1650f),headPivot,listOf(axis("ParamAngleX",-30f,0f,30f),axis("ParamAngleY",-30f,0f,30f))){x,y,v->
-        val w=smooth((1230f-y)/450f);val hx=v.getValue("ParamAngleX")/30f;val hy=v.getValue("ParamAngleY")/30f
-        Pair(x+w*(65f*hx-abs(hx)*(x-1960f)*.025f),y-w*45f*hy+w*hx*(x-1960f)*.015f)
+        val w=1-smooth((y-1030f)/200f)
+        val yaw=v.getValue("ParamAngleX")*.012f;val pitch=v.getValue("ParamAngleY")*.010f
+        val depth=235f*sqrt((1-((x-1955f)/670f)*((x-1955f)/670f)).coerceIn(.12f,1f))
+        // Coordinated yaw/pitch projection; no yaw-induced diagonal shear or sliding facial fragments.
+        Pair(x+w*((x-1955f)*(cos(yaw)-1)+sin(yaw)*depth),
+             y+w*((y-710f)*(cos(pitch)-1)-sin(pitch)*depth))
     }
     warp("Live_Hair","Live_Head",floatArrayOf(1000f,-100f,1850f,1650f),headPivot,listOf(axis("ParamHairSwing",-1f,0f,1f))){x,y,v->
-        Pair(x+v.getValue("ParamHairSwing")*35f*smooth((y-400f)/900f),y)
+        // Keep the contact roots under the shoulder cape anchored; free curl tips still use the full swing.
+        val nearCape=maxOf(1-smooth(abs(x-1460f)/210f),1-smooth(abs(x-2580f)/210f))
+        val contact=nearCape*smooth((y-980f)/150f)*(1-smooth((y-1480f)/150f))
+        Pair(x+v.getValue("ParamHairSwing")*35f*smooth((y-400f)/900f)*(1-contact),y)
     }
     warp("Live_Tail","Hana_Root",floatArrayOf(2350f,2660f,1740f,1900f),rootPivot,listOf(axis("ParamTailSwing",-1f,0f,1f))){x,y,v->
         val w=smooth((x-2370f)/1450f);val a=v.getValue("ParamTailSwing")
         Pair(x+a*50f*w,y-a*60f*w)
     }
     for(side in listOf("VL","VR")){
+        val legBox=if(side=="VL")floatArrayOf(1200f,3050f,850f,2200f)else floatArrayOf(1900f,3050f,750f,2200f)
+        warp("Live_Leg_$side","Hana_Root",legBox,rootPivot,listOf(axis("ParamLeg$side",-1f,0f,1f),axis("ParamKnee$side",-1f,0f,1f))){x,y,v->
+            val upper=smooth((y-3200f)/1000f);val lower=smooth((y-4100f)/650f)
+            val ankle=1-smooth((y-4800f)/250f)
+            Pair(x+(v.getValue("ParamLeg$side")*20f*upper+v.getValue("ParamKnee$side")*15f*lower)*ankle,y)
+        }
         val b=if(side=="VL")floatArrayOf(500f,1200f,1300f,2350f)else floatArrayOf(2280f,1200f,1300f,2350f)
         warp("Live_Arm_$side","Hana_Body",b,bodyPivot,listOf(axis("ParamArmSwing$side",-1f,0f,1f))){x,y,v->
             val w=smooth((y-1300f)/1800f);val a=v.getValue("ParamArmSwing$side")
@@ -140,6 +162,7 @@ fun attachLiveRig(source: PuppetModel): PuppetModel {
         val name=d.name;var parent:String?=null;var box:FloatArray?=null;var channels=d.channelGrids;var masked=d.maskedBy
         when{
             name.startsWith("Tail_")->parent="Live_Tail"
+            name.startsWith("Leg_")->parent="Live_Leg_${if(name.contains("_VL"))"VL" else "VR"}"
             Regex("^(Sleeve|ArmBand|Shoulder|Cuff|Hand)").containsMatchIn(name)->parent="Live_Arm_${if(name.contains("_VL"))"VL" else "VR"}"
             name.startsWith("Brow_")->parent="Live_Brow_${if(name.contains("_VL"))"VL" else "VR"}"
             name.startsWith("Mouth")->parent=if(name=="Mouth_Open")"Live_MouthOpen" else "Live_MouthClosed"
@@ -151,7 +174,8 @@ fun attachLiveRig(source: PuppetModel): PuppetModel {
                 if(iris||name.endsWith("Sclera"))channels=ChannelGrids(channels.gridsByChannel+mapOf(FormChannel.OPACITY to scalars("ParamEye${if(side=="VL")"L" else "R"}Open",floatArrayOf(0f,.08f,.12f,1f,1.2f),floatArrayOf(0f,0f,1f,1f,1f))))
                 if(Regex("OuterCorner|LowerLid|UpperLid").containsMatchIn(name))channels=ChannelGrids(channels.gridsByChannel+mapOf(FormChannel.OPACITY to scalars("ParamEye${if(side=="VL")"L" else "R"}Open",floatArrayOf(0f,.2f,1f,1.2f),floatArrayOf(0f,1f,1f,1f))))
             }
-            Regex("^(Hair_|Forelock_|Pony_)").containsMatchIn(name)->parent="Live_Hair"
+            name.startsWith("Pony_")->parent="Live_Hair"
+            Regex("^(Hair_|Forelock_)").containsMatchIn(name)->parent="Live_Head"
             name in listOf("Face","Neck","Nose")||name.startsWith("HairClip_")||name.endsWith("_Tear")->parent="Live_Head"
         }
         if(name.startsWith("Mouth"))channels=ChannelGrids(mapOf(FormChannel.OPACITY to scalars("ParamMouthOpenY",floatArrayOf(0f,.08f,.3f,1f),if(name=="Mouth_Open")floatArrayOf(0f,.5f,1f,1f)else floatArrayOf(1f,0f,0f,0f))))
@@ -250,8 +274,16 @@ fun main(args: Array<String>) {
     }
     println("Neutral-pose check: PASS; ${drawables.size} meshes, ${deformers.size} rotation deformers")
     val textures=imported.rasterByTile.mapValues{(_,r)->edgeRgb(RasterImage(r.width,r.height,r.rgba))}
-    val packed = packModelAtOpen(model) { id -> textures[id]?.let { DecodedImage(it.rgba,it.width,it.height) } }
-    check(packed.refusals.isEmpty()) { "Atlas refused tiles: ${packed.refusals}" }
+    // Two-pixel editor gutters bleed at the app's 300 px display size (4K textures use mipmaps).
+    val options=AtlasPackOptions(gutter=32,extrude=32)
+    val reserves=meshReserveByTile(model)
+    val atlas=packAtlas(model.atlas.tiles.map { t ->
+        val r=textures.getValue(t.id);AtlasPackItem(t.id.raw,r.width,r.height,r.rgba,reserves[t.id])
+    },options)
+    check(atlas.skipped.isEmpty()) { "Atlas refused tiles: ${atlas.skipped}" }
+    val placements=atlas.placements.associate { AtlasTileId(it.key) to atlasPlacementFromPack(it) }
+    val repacked=model.withAtlasRepack(atlas.pages.map { AtlasPage(it.width,it.height) },placements,atlasCompositionOf(options))
+    val packed=PackedAtOpen(repacked,generatedPuppetTextures(atlas.pages,repacked,false),emptyList())
     val pages = packed.textures.atlases.map { PngCodec.write(RasterImage(it.width,it.height,it.rgba)) }
     val cmo = Cmo3Conversion.freshCmo3(packed.model,
         packed.textures.atlases.mapIndexed { i,a -> Cmo3Conversion.AtlasPage(pages[i],a.width,a.height) },
@@ -301,6 +333,7 @@ fun main(args: Array<String>) {
         put("neutralPose","PASS");put("savedPoseMaxErrorPixels",poseErrors.max());put("editorVisualCheck",false);put("live2dRuntimeTested",false)
         put("moc3PoseMaxErrorPixels",mocPoseErrors.max())
         put("nativePaintOrder","PASS");put("savedPoseChecks",poses.size)
+        put("atlasGutterPixels",options.gutter)
         put("eyeBlinkGazeMouthKeys",live);put("warpDeformers",model.deformers.filterIsInstance<Deformer.Warp>().size)
         put("eyeBlinkGazeMouthPhysicsFinished",false);put("largeHiddenAnatomyRepainted",false)
     }
