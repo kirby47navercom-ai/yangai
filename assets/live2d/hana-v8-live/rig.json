@@ -1,0 +1,2668 @@
+{
+    "canvas": [
+        4096,
+        6144
+    ],
+    "coordinates": "PSD native pixels; rotation hierarchy used by UmamoHana.kt",
+    "bones": [
+        {
+            "id": "Root",
+            "parent": null,
+            "pivot": [
+                1932,
+                3120
+            ],
+            "parameter": "ParamRootZ",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Body",
+            "parent": "Root",
+            "pivot": [
+                1932,
+                2020
+            ],
+            "parameter": "ParamBodyAngleZ",
+            "range": 4,
+            "inputRange": 10
+        },
+        {
+            "id": "Head",
+            "parent": "Body",
+            "pivot": [
+                1960,
+                1064
+            ],
+            "parameter": "ParamAngleZ",
+            "range": 6,
+            "inputRange": 30
+        },
+        {
+            "id": "Arm_VL",
+            "parent": "Body",
+            "pivot": [
+                1520,
+                1376
+            ],
+            "parameter": "ParamArmVL",
+            "range": 5,
+            "inputRange": 1
+        },
+        {
+            "id": "Forearm_VL",
+            "parent": "Arm_VL",
+            "pivot": [
+                1240,
+                2200
+            ],
+            "parameter": "ParamForearmVL",
+            "range": 6,
+            "inputRange": 1
+        },
+        {
+            "id": "Wrist_VL",
+            "parent": "Forearm_VL",
+            "pivot": [
+                952,
+                2940
+            ],
+            "parameter": "ParamWristVL",
+            "range": 5,
+            "inputRange": 1
+        },
+        {
+            "id": "Hand_VL",
+            "parent": "Wrist_VL",
+            "pivot": [
+                812,
+                3120
+            ],
+            "parameter": "ParamHandVL",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Thigh_VL",
+            "parent": "Root",
+            "pivot": [
+                1720,
+                3268
+            ],
+            "parameter": "ParamLegVL",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Shin_VL",
+            "parent": "Thigh_VL",
+            "pivot": [
+                1688,
+                4108
+            ],
+            "parameter": "ParamKneeVL",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Foot_VL",
+            "parent": "Shin_VL",
+            "pivot": [
+                1784,
+                5032
+            ],
+            "parameter": "ParamAnkleVL",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Pony_VL",
+            "parent": "Head",
+            "pivot": [
+                1500,
+                432
+            ],
+            "parameter": "ParamHairVL",
+            "range": 4,
+            "inputRange": 1
+        },
+        {
+            "id": "Skirt_VL",
+            "parent": "Body",
+            "pivot": [
+                1692,
+                2120
+            ],
+            "parameter": "ParamSkirtVL",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Jacket_VL",
+            "parent": "Body",
+            "pivot": [
+                1652,
+                1340
+            ],
+            "parameter": "ParamJacketVL",
+            "range": 1.5,
+            "inputRange": 1
+        },
+        {
+            "id": "Cape_VL",
+            "parent": "Body",
+            "pivot": [
+                1672,
+                1132
+            ],
+            "parameter": "ParamCapeVL",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Arm_VR",
+            "parent": "Body",
+            "pivot": [
+                2364,
+                1376
+            ],
+            "parameter": "ParamArmVR",
+            "range": 5,
+            "inputRange": 1
+        },
+        {
+            "id": "Forearm_VR",
+            "parent": "Arm_VR",
+            "pivot": [
+                2608,
+                2200
+            ],
+            "parameter": "ParamForearmVR",
+            "range": 6,
+            "inputRange": 1
+        },
+        {
+            "id": "Wrist_VR",
+            "parent": "Forearm_VR",
+            "pivot": [
+                2948,
+                2940
+            ],
+            "parameter": "ParamWristVR",
+            "range": 5,
+            "inputRange": 1
+        },
+        {
+            "id": "Hand_VR",
+            "parent": "Wrist_VR",
+            "pivot": [
+                3052,
+                3120
+            ],
+            "parameter": "ParamHandVR",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Thigh_VR",
+            "parent": "Root",
+            "pivot": [
+                2240,
+                3268
+            ],
+            "parameter": "ParamLegVR",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Shin_VR",
+            "parent": "Thigh_VR",
+            "pivot": [
+                2292,
+                4108
+            ],
+            "parameter": "ParamKneeVR",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Foot_VR",
+            "parent": "Shin_VR",
+            "pivot": [
+                2308,
+                5032
+            ],
+            "parameter": "ParamAnkleVR",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Pony_VR",
+            "parent": "Head",
+            "pivot": [
+                2356,
+                432
+            ],
+            "parameter": "ParamHairVR",
+            "range": 4,
+            "inputRange": 1
+        },
+        {
+            "id": "Skirt_VR",
+            "parent": "Body",
+            "pivot": [
+                2168,
+                2120
+            ],
+            "parameter": "ParamSkirtVR",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Jacket_VR",
+            "parent": "Body",
+            "pivot": [
+                2240,
+                1340
+            ],
+            "parameter": "ParamJacketVR",
+            "range": 1.5,
+            "inputRange": 1
+        },
+        {
+            "id": "Cape_VR",
+            "parent": "Body",
+            "pivot": [
+                2220,
+                1132
+            ],
+            "parameter": "ParamCapeVR",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Tail_Base",
+            "parent": "Root",
+            "pivot": [
+                2380,
+                3500
+            ],
+            "parameter": "ParamTailBase",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Tail_Lower",
+            "parent": "Tail_Base",
+            "pivot": [
+                2864,
+                4160
+            ],
+            "parameter": "ParamTailLower",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Tail_Rise",
+            "parent": "Tail_Lower",
+            "pivot": [
+                3608,
+                4320
+            ],
+            "parameter": "ParamTailRise",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Tail_Tip",
+            "parent": "Tail_Rise",
+            "pivot": [
+                3768,
+                3772
+            ],
+            "parameter": "ParamTailTip",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Bow",
+            "parent": "Body",
+            "pivot": [
+                1944,
+                1336
+            ],
+            "parameter": "ParamBow",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Tie",
+            "parent": "Body",
+            "pivot": [
+                1936,
+                1396
+            ],
+            "parameter": "ParamTie",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Boot_VL_Tassel",
+            "parent": "Foot_VL",
+            "pivot": [
+                1611.5,
+                5261
+            ],
+            "parameter": "ParamSway_Boot_VL_Tassel",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Boot_VR_Tassel",
+            "parent": "Foot_VR",
+            "pivot": [
+                2542.5,
+                5288
+            ],
+            "parameter": "ParamSway_Boot_VR_Tassel",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Pendant_VL_Cord",
+            "parent": "Body",
+            "pivot": [
+                1683.5,
+                2208
+            ],
+            "parameter": "ParamSway_Pendant_VL_Cord",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Pendant_VR_Cord",
+            "parent": "Body",
+            "pivot": [
+                2141.5,
+                2210
+            ],
+            "parameter": "ParamSway_Pendant_VR_Cord",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Hip_VL_RedLoop",
+            "parent": "Body",
+            "pivot": [
+                1543.5,
+                2281
+            ],
+            "parameter": "ParamSway_Hip_VL_RedLoop",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Hip_VR_RedLoop",
+            "parent": "Body",
+            "pivot": [
+                2297.5,
+                2288
+            ],
+            "parameter": "ParamSway_Hip_VR_RedLoop",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Sleeve_VL_Tassel",
+            "parent": "Arm_VL",
+            "pivot": [
+                1012.5,
+                2145
+            ],
+            "parameter": "ParamSway_Sleeve_VL_Tassel",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Sleeve_VR_Tassel",
+            "parent": "Arm_VR",
+            "pivot": [
+                2821,
+                2157
+            ],
+            "parameter": "ParamSway_Sleeve_VR_Tassel",
+            "range": 2,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Pony_VL_White_Middle",
+            "parent": "Pony_VL",
+            "pivot": [
+                1375,
+                839
+            ],
+            "parameter": "ParamSway_Pony_VL_White_Middle",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Pony_VL_White_Lower",
+            "parent": "Pony_VL",
+            "pivot": [
+                1385,
+                989
+            ],
+            "parameter": "ParamSway_Pony_VL_White_Lower",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Pony_VL_Red_OuterCurl",
+            "parent": "Pony_VL",
+            "pivot": [
+                1203.5,
+                872
+            ],
+            "parameter": "ParamSway_Pony_VL_Red_OuterCurl",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Pony_VL_Red_MiddleCurl",
+            "parent": "Pony_VL",
+            "pivot": [
+                1296.5,
+                1035
+            ],
+            "parameter": "ParamSway_Pony_VL_Red_MiddleCurl",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Pony_VL_Red_BottomCurl",
+            "parent": "Pony_VL",
+            "pivot": [
+                1329.5,
+                1376
+            ],
+            "parameter": "ParamSway_Pony_VL_Red_BottomCurl",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Pony_VR_White_Middle",
+            "parent": "Pony_VR",
+            "pivot": [
+                2578.5,
+                348
+            ],
+            "parameter": "ParamSway_Pony_VR_White_Middle",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Pony_VR_White_Curl",
+            "parent": "Pony_VR",
+            "pivot": [
+                2514.5,
+                786
+            ],
+            "parameter": "ParamSway_Pony_VR_White_Curl",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Pony_VR_Blue_OuterCurl",
+            "parent": "Pony_VR",
+            "pivot": [
+                2742.5,
+                988
+            ],
+            "parameter": "ParamSway_Pony_VR_Blue_OuterCurl",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Pony_VR_Blue_MiddleCurl",
+            "parent": "Pony_VR",
+            "pivot": [
+                2592,
+                1092
+            ],
+            "parameter": "ParamSway_Pony_VR_Blue_MiddleCurl",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Pony_VR_Blue_BottomCurl",
+            "parent": "Pony_VR",
+            "pivot": [
+                2607,
+                1289
+            ],
+            "parameter": "ParamSway_Pony_VR_Blue_BottomCurl",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Hair_VL_Outer",
+            "parent": "Head",
+            "pivot": [
+                1620,
+                250
+            ],
+            "parameter": "ParamSway_Hair_VL_Outer",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Hair_VL_InnerBang",
+            "parent": "Head",
+            "pivot": [
+                1694.5,
+                290
+            ],
+            "parameter": "ParamSway_Hair_VL_InnerBang",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Hair_VL_CheekUpper",
+            "parent": "Head",
+            "pivot": [
+                1622.5,
+                753
+            ],
+            "parameter": "ParamSway_Hair_VL_CheekUpper",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Hair_VL_CheekMiddle",
+            "parent": "Head",
+            "pivot": [
+                1639,
+                853
+            ],
+            "parameter": "ParamSway_Hair_VL_CheekMiddle",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Hair_VL_CheekLower",
+            "parent": "Head",
+            "pivot": [
+                1703,
+                984
+            ],
+            "parameter": "ParamSway_Hair_VL_CheekLower",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Hair_VR_Outer",
+            "parent": "Head",
+            "pivot": [
+                2095.5,
+                246
+            ],
+            "parameter": "ParamSway_Hair_VR_Outer",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Hair_VR_InnerBang",
+            "parent": "Head",
+            "pivot": [
+                2017.5,
+                278
+            ],
+            "parameter": "ParamSway_Hair_VR_InnerBang",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Hair_VR_CheekUpper",
+            "parent": "Head",
+            "pivot": [
+                2196.5,
+                488
+            ],
+            "parameter": "ParamSway_Hair_VR_CheekUpper",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Hair_VR_CheekMiddle",
+            "parent": "Head",
+            "pivot": [
+                2250.5,
+                557
+            ],
+            "parameter": "ParamSway_Hair_VR_CheekMiddle",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Hair_VR_CheekLower",
+            "parent": "Head",
+            "pivot": [
+                2311,
+                638
+            ],
+            "parameter": "ParamSway_Hair_VR_CheekLower",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Forelock_Red",
+            "parent": "Head",
+            "pivot": [
+                1868,
+                293
+            ],
+            "parameter": "ParamSway_Forelock_Red",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Forelock_Blue",
+            "parent": "Head",
+            "pivot": [
+                1798,
+                307
+            ],
+            "parameter": "ParamSway_Forelock_Blue",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Hair_Ahoge",
+            "parent": "Head",
+            "pivot": [
+                1791.5,
+                65
+            ],
+            "parameter": "ParamSway_Hair_Ahoge",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Forelock_Blue_TipUpper",
+            "parent": "Head",
+            "pivot": [
+                1835.5,
+                554
+            ],
+            "parameter": "ParamSway_Forelock_Blue_TipUpper",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Forelock_Blue_TipMiddle",
+            "parent": "Head",
+            "pivot": [
+                1810.5,
+                614
+            ],
+            "parameter": "ParamSway_Forelock_Blue_TipMiddle",
+            "range": 3,
+            "inputRange": 1
+        },
+        {
+            "id": "Detail_Forelock_Blue_TipLower",
+            "parent": "Head",
+            "pivot": [
+                1828.5,
+                679
+            ],
+            "parameter": "ParamSway_Forelock_Blue_TipLower",
+            "range": 3,
+            "inputRange": 1
+        }
+    ],
+    "parts": [
+        {
+            "id": "Tail_Root",
+            "bone": "Tail_Base",
+            "file": "../hana-v7-rig/parts/Tail_Root.png",
+            "left": 2358,
+            "top": 2792,
+            "width": 1669,
+            "height": 1220,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Leg_VL_Upper",
+            "bone": "Thigh_VL",
+            "file": "../hana-v7-rig/parts/Leg_VL_Upper.png",
+            "left": 1212,
+            "top": 3179,
+            "width": 777,
+            "height": 953,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Leg_VR_Upper",
+            "bone": "Thigh_VR",
+            "file": "../hana-v7-rig/parts/Leg_VR_Upper.png",
+            "left": 1920,
+            "top": 3221,
+            "width": 589,
+            "height": 911,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VL_Main",
+            "bone": "Foot_VL",
+            "file": "../hana-v7-rig/parts/Boot_VL_Main.png",
+            "left": 228,
+            "top": 4958,
+            "width": 1849,
+            "height": 1147,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VR_Main",
+            "bone": "Foot_VR",
+            "file": "../hana-v7-rig/parts/Boot_VR_Main.png",
+            "left": 2092,
+            "top": 4955,
+            "width": 509,
+            "height": 1158,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VL_Main",
+            "bone": "Arm_VL",
+            "file": "../hana-v7-rig/parts/Sleeve_VL_Main.png",
+            "left": 856,
+            "top": 1267,
+            "width": 826,
+            "height": 1103,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VR_Main",
+            "bone": "Arm_VR",
+            "file": "../hana-v7-rig/parts/Sleeve_VR_Main.png",
+            "left": 2187,
+            "top": 1267,
+            "width": 798,
+            "height": 1342,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hand_VL",
+            "bone": "Hand_VL",
+            "file": "../hana-v7-rig/parts/Hand_VL.png",
+            "left": 404,
+            "top": 2832,
+            "width": 604,
+            "height": 681,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hand_VR",
+            "bone": "Hand_VR",
+            "file": "../hana-v7-rig/parts/Hand_VR.png",
+            "left": 2823,
+            "top": 2880,
+            "width": 571,
+            "height": 661,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Cuff_VL",
+            "bone": "Wrist_VL",
+            "file": "../hana-v7-rig/parts/Cuff_VL.png",
+            "left": 693,
+            "top": 2718,
+            "width": 417,
+            "height": 277,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Cuff_VR",
+            "bone": "Wrist_VR",
+            "file": "../hana-v7-rig/parts/Cuff_VR.png",
+            "left": 2739,
+            "top": 2727,
+            "width": 393,
+            "height": 322,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_Center",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Skirt_Center.png",
+            "left": 1073,
+            "top": 1988,
+            "width": 1651,
+            "height": 1382,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Inner_Bodice",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Inner_Bodice.png",
+            "left": 1745,
+            "top": 1332,
+            "width": 351,
+            "height": 575,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Waist_Corset",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Waist_Corset.png",
+            "left": 1601,
+            "top": 1824,
+            "width": 650,
+            "height": 292,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VL",
+            "bone": "Jacket_VL",
+            "file": "../hana-v7-rig/parts/Jacket_VL.png",
+            "left": 1404,
+            "top": 1270,
+            "width": 495,
+            "height": 758,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VR",
+            "bone": "Jacket_VR",
+            "file": "../hana-v7-rig/parts/Jacket_VR.png",
+            "left": 1951,
+            "top": 1275,
+            "width": 488,
+            "height": 747,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VL_InsideHem",
+            "bone": "Jacket_VL",
+            "file": "../hana-v7-rig/parts/Jacket_VL_InsideHem.png",
+            "left": 1401,
+            "top": 1905,
+            "width": 252,
+            "height": 195,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VR_InsideHem",
+            "bone": "Jacket_VR",
+            "file": "../hana-v7-rig/parts/Jacket_VR_InsideHem.png",
+            "left": 2151,
+            "top": 1894,
+            "width": 288,
+            "height": 215,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hair_CrownBack",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Hair_CrownBack.png",
+            "left": 1088,
+            "top": 28,
+            "width": 1801,
+            "height": 1126,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VL",
+            "bone": "Pony_VL",
+            "file": "../hana-v7-rig/parts/Pony_VL.png",
+            "left": 1088,
+            "top": 350,
+            "width": 681,
+            "height": 1186,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VR",
+            "bone": "Pony_VR",
+            "file": "../hana-v7-rig/parts/Pony_VR.png",
+            "left": 2239,
+            "top": 227,
+            "width": 642,
+            "height": 1342,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Cape_VL",
+            "bone": "Cape_VL",
+            "file": "../hana-v7-rig/parts/Cape_VL.png",
+            "left": 1351,
+            "top": 1067,
+            "width": 609,
+            "height": 392,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Cape_VR",
+            "bone": "Cape_VR",
+            "file": "../hana-v7-rig/parts/Cape_VR.png",
+            "left": 1926,
+            "top": 1066,
+            "width": 696,
+            "height": 389,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Collar",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Collar.png",
+            "left": 1760,
+            "top": 1033,
+            "width": 420,
+            "height": 292,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Tail_LowerArc",
+            "bone": "Tail_Lower",
+            "file": "../hana-v7-rig/parts/Tail_LowerArc.png",
+            "left": 2286,
+            "top": 3569,
+            "width": 1118,
+            "height": 1110,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Tail_RisingArc",
+            "bone": "Tail_Rise",
+            "file": "../hana-v7-rig/parts/Tail_RisingArc.png",
+            "left": 3291,
+            "top": 3753,
+            "width": 802,
+            "height": 1670,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Tail_TipWithTransition",
+            "bone": "Tail_Tip",
+            "file": "../hana-v7-rig/parts/Tail_TipWithTransition.png",
+            "left": 3159,
+            "top": 2632,
+            "width": 937,
+            "height": 1289,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Leg_VL_Lower",
+            "bone": "Shin_VL",
+            "file": "../hana-v7-rig/parts/Leg_VL_Lower.png",
+            "left": 692,
+            "top": 4068,
+            "width": 1269,
+            "height": 1073,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Leg_VR_Lower",
+            "bone": "Shin_VR",
+            "file": "../hana-v7-rig/parts/Leg_VR_Lower.png",
+            "left": 1964,
+            "top": 4068,
+            "width": 573,
+            "height": 956,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Leg_VL_Opening",
+            "bone": "Shin_VL",
+            "file": "../hana-v7-rig/parts/Leg_VL_Opening.png",
+            "left": 1613,
+            "top": 4930,
+            "width": 321,
+            "height": 206,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Leg_VR_Opening",
+            "bone": "Shin_VR",
+            "file": "../hana-v7-rig/parts/Leg_VR_Opening.png",
+            "left": 2221,
+            "top": 4932,
+            "width": 295,
+            "height": 213,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VL_Sole",
+            "bone": "Foot_VL",
+            "file": "../hana-v7-rig/parts/Boot_VL_Sole.png",
+            "left": 1572,
+            "top": 5795,
+            "width": 505,
+            "height": 310,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VR_Sole",
+            "bone": "Foot_VR",
+            "file": "../hana-v7-rig/parts/Boot_VR_Sole.png",
+            "left": 2092,
+            "top": 5837,
+            "width": 501,
+            "height": 276,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VL_Toe",
+            "bone": "Foot_VL",
+            "file": "../hana-v7-rig/parts/Boot_VL_Toe.png",
+            "left": 1606,
+            "top": 5650,
+            "width": 467,
+            "height": 303,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VR_Toe",
+            "bone": "Foot_VR",
+            "file": "../hana-v7-rig/parts/Boot_VR_Toe.png",
+            "left": 2104,
+            "top": 5661,
+            "width": 496,
+            "height": 302,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VL_UpperStrap",
+            "bone": "Foot_VL",
+            "file": "../hana-v7-rig/parts/Boot_VL_UpperStrap.png",
+            "left": 1598,
+            "top": 5053,
+            "width": 360,
+            "height": 199,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VL_LowerStrap",
+            "bone": "Foot_VL",
+            "file": "../hana-v7-rig/parts/Boot_VL_LowerStrap.png",
+            "left": 1628,
+            "top": 5173,
+            "width": 333,
+            "height": 181,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VR_UpperStrap",
+            "bone": "Foot_VR",
+            "file": "../hana-v7-rig/parts/Boot_VR_UpperStrap.png",
+            "left": 2188,
+            "top": 5072,
+            "width": 359,
+            "height": 202,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VR_LowerStrap",
+            "bone": "Foot_VR",
+            "file": "../hana-v7-rig/parts/Boot_VR_LowerStrap.png",
+            "left": 2208,
+            "top": 5199,
+            "width": 321,
+            "height": 172,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VL_UpperGem",
+            "bone": "Foot_VL",
+            "file": "../hana-v7-rig/parts/Boot_VL_UpperGem.png",
+            "left": 1663,
+            "top": 5098,
+            "width": 124,
+            "height": 133,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VL_LowerGem",
+            "bone": "Foot_VL",
+            "file": "../hana-v7-rig/parts/Boot_VL_LowerGem.png",
+            "left": 1674,
+            "top": 5181,
+            "width": 124,
+            "height": 136,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VR_UpperGem",
+            "bone": "Foot_VR",
+            "file": "../hana-v7-rig/parts/Boot_VR_UpperGem.png",
+            "left": 2358,
+            "top": 5119,
+            "width": 125,
+            "height": 138,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VR_LowerGem",
+            "bone": "Foot_VR",
+            "file": "../hana-v7-rig/parts/Boot_VR_LowerGem.png",
+            "left": 2359,
+            "top": 5208,
+            "width": 123,
+            "height": 132,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VL_Flower",
+            "bone": "Foot_VL",
+            "file": "../hana-v7-rig/parts/Boot_VL_Flower.png",
+            "left": 1531,
+            "top": 5080,
+            "width": 220,
+            "height": 220,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VR_Flower",
+            "bone": "Foot_VR",
+            "file": "../hana-v7-rig/parts/Boot_VR_Flower.png",
+            "left": 2399,
+            "top": 5092,
+            "width": 210,
+            "height": 255,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VL_Tassel",
+            "bone": "Detail_Boot_VL_Tassel",
+            "file": "../hana-v7-rig/parts/Boot_VL_Tassel.png",
+            "left": 1508,
+            "top": 5213,
+            "width": 207,
+            "height": 310,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Boot_VR_Tassel",
+            "bone": "Detail_Boot_VR_Tassel",
+            "file": "../hana-v7-rig/parts/Boot_VR_Tassel.png",
+            "left": 2450,
+            "top": 5240,
+            "width": 1007,
+            "height": 306,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_VL_Outer",
+            "bone": "Skirt_VL",
+            "file": "../hana-v7-rig/parts/Skirt_VL_Outer.png",
+            "left": 1056,
+            "top": 2015,
+            "width": 657,
+            "height": 1234,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_VR_Outer",
+            "bone": "Skirt_VR",
+            "file": "../hana-v7-rig/parts/Skirt_VR_Outer.png",
+            "left": 2128,
+            "top": 2016,
+            "width": 597,
+            "height": 1214,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_VL_Panel",
+            "bone": "Skirt_VL",
+            "file": "../hana-v7-rig/parts/Skirt_VL_Panel.png",
+            "left": 1221,
+            "top": 2073,
+            "width": 544,
+            "height": 1251,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_VR_Panel",
+            "bone": "Skirt_VR",
+            "file": "../hana-v7-rig/parts/Skirt_VR_Panel.png",
+            "left": 2053,
+            "top": 2113,
+            "width": 545,
+            "height": 1212,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_VL_RedInset",
+            "bone": "Skirt_VL",
+            "file": "../hana-v7-rig/parts/Skirt_VL_RedInset.png",
+            "left": 1513,
+            "top": 2699,
+            "width": 188,
+            "height": 605,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_VR_BlueInset",
+            "bone": "Skirt_VR",
+            "file": "../hana-v7-rig/parts/Skirt_VR_BlueInset.png",
+            "left": 2121,
+            "top": 2695,
+            "width": 190,
+            "height": 613,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_VL_FrontPiping",
+            "bone": "Skirt_VL",
+            "file": "../hana-v7-rig/parts/Skirt_VL_FrontPiping.png",
+            "left": 1465,
+            "top": 2757,
+            "width": 243,
+            "height": 567,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_VR_FrontPiping",
+            "bone": "Skirt_VR",
+            "file": "../hana-v7-rig/parts/Skirt_VR_FrontPiping.png",
+            "left": 2158,
+            "top": 2771,
+            "width": 201,
+            "height": 556,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_Emblem_1",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Skirt_Emblem_1.png",
+            "left": 1764,
+            "top": 2172,
+            "width": 132,
+            "height": 134,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_Emblem_2",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Skirt_Emblem_2.png",
+            "left": 1963,
+            "top": 2173,
+            "width": 131,
+            "height": 135,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_Emblem_3",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Skirt_Emblem_3.png",
+            "left": 1755,
+            "top": 2318,
+            "width": 133,
+            "height": 136,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_Emblem_4",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Skirt_Emblem_4.png",
+            "left": 1969,
+            "top": 2318,
+            "width": 135,
+            "height": 135,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_Emblem_5",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Skirt_Emblem_5.png",
+            "left": 1747,
+            "top": 2474,
+            "width": 136,
+            "height": 135,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Skirt_Emblem_6",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Skirt_Emblem_6.png",
+            "left": 1969,
+            "top": 2474,
+            "width": 136,
+            "height": 135,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pendant_VL_Cord",
+            "bone": "Detail_Pendant_VL_Cord",
+            "file": "../hana-v7-rig/parts/Pendant_VL_Cord.png",
+            "left": 1616,
+            "top": 2160,
+            "width": 135,
+            "height": 471,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pendant_VL_Flower",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Pendant_VL_Flower.png",
+            "left": 1549,
+            "top": 2548,
+            "width": 224,
+            "height": 226,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pendant_VL_Drop",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Pendant_VL_Drop.png",
+            "left": 1585,
+            "top": 2669,
+            "width": 118,
+            "height": 162,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pendant_VR_Cord",
+            "bone": "Detail_Pendant_VR_Cord",
+            "file": "../hana-v7-rig/parts/Pendant_VR_Cord.png",
+            "left": 2068,
+            "top": 2162,
+            "width": 147,
+            "height": 460,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pendant_VR_Flower",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Pendant_VR_Flower.png",
+            "left": 2070,
+            "top": 2549,
+            "width": 218,
+            "height": 225,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pendant_VR_Drop",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Pendant_VR_Drop.png",
+            "left": 2122,
+            "top": 2676,
+            "width": 117,
+            "height": 160,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hip_VL_Ring",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Hip_VL_Ring.png",
+            "left": 1682,
+            "top": 2039,
+            "width": 166,
+            "height": 183,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hip_VL_Chain",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Hip_VL_Chain.png",
+            "left": 1660,
+            "top": 2138,
+            "width": 122,
+            "height": 130,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hip_VR_Ring",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Hip_VR_Ring.png",
+            "left": 1992,
+            "top": 2034,
+            "width": 165,
+            "height": 188,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hip_VR_Chain",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Hip_VR_Chain.png",
+            "left": 2062,
+            "top": 2138,
+            "width": 119,
+            "height": 141,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hip_VL_RedLoop",
+            "bone": "Detail_Hip_VL_RedLoop",
+            "file": "../hana-v7-rig/parts/Hip_VL_RedLoop.png",
+            "left": 1360,
+            "top": 2233,
+            "width": 367,
+            "height": 255,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hip_VR_RedLoop",
+            "bone": "Detail_Hip_VR_RedLoop",
+            "file": "../hana-v7-rig/parts/Hip_VR_RedLoop.png",
+            "left": 2113,
+            "top": 2240,
+            "width": 369,
+            "height": 252,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hip_VL_Clasp",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Hip_VL_Clasp.png",
+            "left": 1645,
+            "top": 2192,
+            "width": 129,
+            "height": 137,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hip_VR_Clasp",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Hip_VR_Clasp.png",
+            "left": 2090,
+            "top": 2204,
+            "width": 139,
+            "height": 128,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Waist_UpperBelt",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Waist_UpperBelt.png",
+            "left": 1776,
+            "top": 1875,
+            "width": 278,
+            "height": 144,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Waist_LowerBelt",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Waist_LowerBelt.png",
+            "left": 1775,
+            "top": 1950,
+            "width": 292,
+            "height": 166,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Waist_Button_1",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Waist_Button_1.png",
+            "left": 1745,
+            "top": 1881,
+            "width": 124,
+            "height": 137,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Waist_Button_2",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Waist_Button_2.png",
+            "left": 1979,
+            "top": 1882,
+            "width": 125,
+            "height": 137,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Waist_Button_3",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Waist_Button_3.png",
+            "left": 1744,
+            "top": 1972,
+            "width": 128,
+            "height": 138,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Waist_Button_4",
+            "bone": "Body",
+            "file": "../hana-v7-rig/parts/Waist_Button_4.png",
+            "left": 1978,
+            "top": 1973,
+            "width": 127,
+            "height": 136,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Necktie",
+            "bone": "Tie",
+            "file": "../hana-v7-rig/parts/Necktie.png",
+            "left": 1840,
+            "top": 1348,
+            "width": 184,
+            "height": 540,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Necktie_WhiteBand",
+            "bone": "Tie",
+            "file": "../hana-v7-rig/parts/Necktie_WhiteBand.png",
+            "left": 1842,
+            "top": 1737,
+            "width": 181,
+            "height": 89,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Necktie_BlueBand",
+            "bone": "Tie",
+            "file": "../hana-v7-rig/parts/Necktie_BlueBand.png",
+            "left": 1841,
+            "top": 1718,
+            "width": 183,
+            "height": 142,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Necktie_RedBand",
+            "bone": "Tie",
+            "file": "../hana-v7-rig/parts/Necktie_RedBand.png",
+            "left": 1841,
+            "top": 1796,
+            "width": 184,
+            "height": 92,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VL_Pocket",
+            "bone": "Jacket_VL",
+            "file": "../hana-v7-rig/parts/Jacket_VL_Pocket.png",
+            "left": 1454,
+            "top": 1571,
+            "width": 281,
+            "height": 338,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VR_Pocket",
+            "bone": "Jacket_VR",
+            "file": "../hana-v7-rig/parts/Jacket_VR_Pocket.png",
+            "left": 2083,
+            "top": 1524,
+            "width": 311,
+            "height": 380,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VL_PocketFlap",
+            "bone": "Jacket_VL",
+            "file": "../hana-v7-rig/parts/Jacket_VL_PocketFlap.png",
+            "left": 1463,
+            "top": 1489,
+            "width": 294,
+            "height": 191,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VR_PocketFlap",
+            "bone": "Jacket_VR",
+            "file": "../hana-v7-rig/parts/Jacket_VR_PocketFlap.png",
+            "left": 2085,
+            "top": 1477,
+            "width": 311,
+            "height": 192,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VL_Zip",
+            "bone": "Jacket_VL",
+            "file": "../hana-v7-rig/parts/Jacket_VL_Zip.png",
+            "left": 1459,
+            "top": 1471,
+            "width": 306,
+            "height": 130,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VR_Zip",
+            "bone": "Jacket_VR",
+            "file": "../hana-v7-rig/parts/Jacket_VR_Zip.png",
+            "left": 2087,
+            "top": 1471,
+            "width": 310,
+            "height": 134,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VL_Cord",
+            "bone": "Jacket_VL",
+            "file": "../hana-v7-rig/parts/Jacket_VL_Cord.png",
+            "left": 1525,
+            "top": 1649,
+            "width": 101,
+            "height": 326,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VR_Cord",
+            "bone": "Jacket_VR",
+            "file": "../hana-v7-rig/parts/Jacket_VR_Cord.png",
+            "left": 2229,
+            "top": 1658,
+            "width": 93,
+            "height": 317,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VL_Badge",
+            "bone": "Jacket_VL",
+            "file": "../hana-v7-rig/parts/Jacket_VL_Badge.png",
+            "left": 1509,
+            "top": 1561,
+            "width": 147,
+            "height": 154,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Jacket_VR_Badge",
+            "bone": "Jacket_VR",
+            "file": "../hana-v7-rig/parts/Jacket_VR_Badge.png",
+            "left": 2197,
+            "top": 1566,
+            "width": 149,
+            "height": 158,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Chest_Brooch",
+            "bone": "Jacket_VR",
+            "file": "../hana-v7-rig/parts/Chest_Brooch.png",
+            "left": 2123,
+            "top": 1354,
+            "width": 159,
+            "height": 148,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VL_Lower",
+            "bone": "Forearm_VL",
+            "file": "../hana-v7-rig/parts/Sleeve_VL_Lower.png",
+            "left": 556,
+            "top": 2094,
+            "width": 896,
+            "height": 927,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VR_Lower",
+            "bone": "Forearm_VR",
+            "file": "../hana-v7-rig/parts/Sleeve_VR_Lower.png",
+            "left": 2404,
+            "top": 2101,
+            "width": 895,
+            "height": 920,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "ArmBand_VL",
+            "bone": "Arm_VL",
+            "file": "../hana-v7-rig/parts/ArmBand_VL.png",
+            "left": 1152,
+            "top": 1589,
+            "width": 373,
+            "height": 225,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "ArmBand_VR",
+            "bone": "Arm_VR",
+            "file": "../hana-v7-rig/parts/ArmBand_VR.png",
+            "left": 2334,
+            "top": 1588,
+            "width": 409,
+            "height": 258,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Shoulder_VL_RedStrap",
+            "bone": "Arm_VL",
+            "file": "../hana-v7-rig/parts/Shoulder_VL_RedStrap.png",
+            "left": 1204,
+            "top": 1267,
+            "width": 354,
+            "height": 410,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Shoulder_VR_RedStrap",
+            "bone": "Arm_VR",
+            "file": "../hana-v7-rig/parts/Shoulder_VR_RedStrap.png",
+            "left": 2346,
+            "top": 1267,
+            "width": 299,
+            "height": 416,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Shoulder_VL_Buckle",
+            "bone": "Arm_VL",
+            "file": "../hana-v7-rig/parts/Shoulder_VL_Buckle.png",
+            "left": 1254,
+            "top": 1500,
+            "width": 157,
+            "height": 141,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Shoulder_VR_Buckle",
+            "bone": "Arm_VR",
+            "file": "../hana-v7-rig/parts/Shoulder_VR_Buckle.png",
+            "left": 2482,
+            "top": 1506,
+            "width": 151,
+            "height": 143,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "ArmBand_VL_Gem",
+            "bone": "Arm_VL",
+            "file": "../hana-v7-rig/parts/ArmBand_VL_Gem.png",
+            "left": 1184,
+            "top": 1643,
+            "width": 131,
+            "height": 141,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "ArmBand_VR_Gem",
+            "bone": "Arm_VR",
+            "file": "../hana-v7-rig/parts/ArmBand_VR_Gem.png",
+            "left": 2559,
+            "top": 1653,
+            "width": 135,
+            "height": 150,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "SleevePocket_VL",
+            "bone": "Arm_VL",
+            "file": "../hana-v7-rig/parts/SleevePocket_VL.png",
+            "left": 1058,
+            "top": 1858,
+            "width": 281,
+            "height": 256,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "SleevePocket_VR",
+            "bone": "Arm_VR",
+            "file": "../hana-v7-rig/parts/SleevePocket_VR.png",
+            "left": 2521,
+            "top": 1867,
+            "width": 293,
+            "height": 250,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "SleeveFlap_VL",
+            "bone": "Arm_VL",
+            "file": "../hana-v7-rig/parts/SleeveFlap_VL.png",
+            "left": 1050,
+            "top": 1739,
+            "width": 275,
+            "height": 212,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "SleeveFlap_VR",
+            "bone": "Arm_VR",
+            "file": "../hana-v7-rig/parts/SleeveFlap_VR.png",
+            "left": 2520,
+            "top": 1743,
+            "width": 291,
+            "height": 214,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VL_Cord",
+            "bone": "Arm_VL",
+            "file": "../hana-v7-rig/parts/Sleeve_VL_Cord.png",
+            "left": 1076,
+            "top": 1856,
+            "width": 164,
+            "height": 219,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VR_Cord",
+            "bone": "Arm_VR",
+            "file": "../hana-v7-rig/parts/Sleeve_VR_Cord.png",
+            "left": 2628,
+            "top": 1868,
+            "width": 159,
+            "height": 207,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VL_Medallion",
+            "bone": "Arm_VL",
+            "file": "../hana-v7-rig/parts/Sleeve_VL_Medallion.png",
+            "left": 981,
+            "top": 1985,
+            "width": 178,
+            "height": 187,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VR_Medallion",
+            "bone": "Arm_VR",
+            "file": "../hana-v7-rig/parts/Sleeve_VR_Medallion.png",
+            "left": 2687,
+            "top": 1995,
+            "width": 170,
+            "height": 185,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VL_Tassel",
+            "bone": "Detail_Sleeve_VL_Tassel",
+            "file": "../hana-v7-rig/parts/Sleeve_VL_Tassel.png",
+            "left": 917,
+            "top": 2097,
+            "width": 191,
+            "height": 334,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VR_Tassel",
+            "bone": "Detail_Sleeve_VR_Tassel",
+            "file": "../hana-v7-rig/parts/Sleeve_VR_Tassel.png",
+            "left": 2728,
+            "top": 2109,
+            "width": 186,
+            "height": 327,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VL_Ribbon",
+            "bone": "Forearm_VL",
+            "file": "../hana-v7-rig/parts/Sleeve_VL_Ribbon.png",
+            "left": 603,
+            "top": 2111,
+            "width": 464,
+            "height": 534,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VR_Ribbon",
+            "bone": "Forearm_VR",
+            "file": "../hana-v7-rig/parts/Sleeve_VR_Ribbon.png",
+            "left": 2786,
+            "top": 2112,
+            "width": 413,
+            "height": 520,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VL_Coin",
+            "bone": "Forearm_VL",
+            "file": "../hana-v7-rig/parts/Sleeve_VL_Coin.png",
+            "left": 675,
+            "top": 2255,
+            "width": 163,
+            "height": 145,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Sleeve_VR_Coin",
+            "bone": "Forearm_VR",
+            "file": "../hana-v7-rig/parts/Sleeve_VR_Coin.png",
+            "left": 2996,
+            "top": 2271,
+            "width": 156,
+            "height": 150,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "SleeveGem_VL_Blue",
+            "bone": "Forearm_VL",
+            "file": "../hana-v7-rig/parts/SleeveGem_VL_Blue.png",
+            "left": 691,
+            "top": 2537,
+            "width": 132,
+            "height": 149,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "SleeveGem_VL_Red",
+            "bone": "Forearm_VL",
+            "file": "../hana-v7-rig/parts/SleeveGem_VL_Red.png",
+            "left": 678,
+            "top": 2614,
+            "width": 142,
+            "height": 155,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "SleeveGem_VL_Gold",
+            "bone": "Forearm_VL",
+            "file": "../hana-v7-rig/parts/SleeveGem_VL_Gold.png",
+            "left": 741,
+            "top": 2590,
+            "width": 130,
+            "height": 135,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "SleeveGem_VR_Blue",
+            "bone": "Forearm_VR",
+            "file": "../hana-v7-rig/parts/SleeveGem_VR_Blue.png",
+            "left": 2995,
+            "top": 2561,
+            "width": 138,
+            "height": 143,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "SleeveGem_VR_Red",
+            "bone": "Forearm_VR",
+            "file": "../hana-v7-rig/parts/SleeveGem_VR_Red.png",
+            "left": 2998,
+            "top": 2634,
+            "width": 145,
+            "height": 157,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "SleeveGem_VR_Gold",
+            "bone": "Forearm_VR",
+            "file": "../hana-v7-rig/parts/SleeveGem_VR_Gold.png",
+            "left": 2948,
+            "top": 2613,
+            "width": 129,
+            "height": 132,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Cuff_VL_UpperButton",
+            "bone": "Wrist_VL",
+            "file": "../hana-v7-rig/parts/Cuff_VL_UpperButton.png",
+            "left": 733,
+            "top": 2741,
+            "width": 108,
+            "height": 111,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Cuff_VL_LowerButton",
+            "bone": "Wrist_VL",
+            "file": "../hana-v7-rig/parts/Cuff_VL_LowerButton.png",
+            "left": 713,
+            "top": 2803,
+            "width": 111,
+            "height": 106,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Cuff_VR_UpperButton",
+            "bone": "Wrist_VR",
+            "file": "../hana-v7-rig/parts/Cuff_VR_UpperButton.png",
+            "left": 2983,
+            "top": 2755,
+            "width": 105,
+            "height": 112,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Cuff_VR_LowerButton",
+            "bone": "Wrist_VR",
+            "file": "../hana-v7-rig/parts/Cuff_VR_LowerButton.png",
+            "left": 3001,
+            "top": 2817,
+            "width": 103,
+            "height": 108,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Face",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Face.png",
+            "left": 1601,
+            "top": 576,
+            "width": 613,
+            "height": 525,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Neck",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Neck.png",
+            "left": 1848,
+            "top": 963,
+            "width": 260,
+            "height": 171,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Brow_VL",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Brow_VL.png",
+            "left": 1651,
+            "top": 651,
+            "width": 117,
+            "height": 88,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Brow_VR",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Brow_VR.png",
+            "left": 1945,
+            "top": 576,
+            "width": 141,
+            "height": 93,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Mouth",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Mouth.png",
+            "left": 1855,
+            "top": 883,
+            "width": 182,
+            "height": 102,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Nose",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Nose.png",
+            "left": 1864,
+            "top": 814,
+            "width": 81,
+            "height": 107,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "HairClip_VL",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/HairClip_VL.png",
+            "left": 1324,
+            "top": 133,
+            "width": 339,
+            "height": 362,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "HairClip_VR",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/HairClip_VR.png",
+            "left": 2053,
+            "top": 44,
+            "width": 390,
+            "height": 373,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Cape_VL_Cord",
+            "bone": "Cape_VL",
+            "file": "../hana-v7-rig/parts/Cape_VL_Cord.png",
+            "left": 1601,
+            "top": 1190,
+            "width": 173,
+            "height": 269,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Cape_VL_Pin",
+            "bone": "Cape_VL",
+            "file": "../hana-v7-rig/parts/Cape_VL_Pin.png",
+            "left": 1706,
+            "top": 1166,
+            "width": 101,
+            "height": 107,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Cape_VR_Clasp",
+            "bone": "Cape_VR",
+            "file": "../hana-v7-rig/parts/Cape_VR_Clasp.png",
+            "left": 2110,
+            "top": 1095,
+            "width": 170,
+            "height": 267,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Bow_VL",
+            "bone": "Bow",
+            "file": "../hana-v7-rig/parts/Bow_VL.png",
+            "left": 1755,
+            "top": 1243,
+            "width": 181,
+            "height": 199,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Bow_VR",
+            "bone": "Bow",
+            "file": "../hana-v7-rig/parts/Bow_VR.png",
+            "left": 1947,
+            "top": 1246,
+            "width": 193,
+            "height": 199,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Bow_Brooch",
+            "bone": "Bow",
+            "file": "../hana-v7-rig/parts/Bow_Brooch.png",
+            "left": 1862,
+            "top": 1258,
+            "width": 161,
+            "height": 156,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VL_White_Outer",
+            "bone": "Pony_VL",
+            "file": "../hana-v7-rig/parts/Pony_VL_White_Outer.png",
+            "left": 1102,
+            "top": 375,
+            "width": 422,
+            "height": 430,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VL_White_Middle",
+            "bone": "Detail_Pony_VL_White_Middle",
+            "file": "../hana-v7-rig/parts/Pony_VL_White_Middle.png",
+            "left": 1225,
+            "top": 791,
+            "width": 300,
+            "height": 246,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VL_White_Lower",
+            "bone": "Detail_Pony_VL_White_Lower",
+            "file": "../hana-v7-rig/parts/Pony_VL_White_Lower.png",
+            "left": 1238,
+            "top": 941,
+            "width": 294,
+            "height": 173,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VL_Red_OuterCurl",
+            "bone": "Detail_Pony_VL_Red_OuterCurl",
+            "file": "../hana-v7-rig/parts/Pony_VL_Red_OuterCurl.png",
+            "left": 1092,
+            "top": 824,
+            "width": 223,
+            "height": 326,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VL_Red_MiddleCurl",
+            "bone": "Detail_Pony_VL_Red_MiddleCurl",
+            "file": "../hana-v7-rig/parts/Pony_VL_Red_MiddleCurl.png",
+            "left": 1155,
+            "top": 987,
+            "width": 283,
+            "height": 403,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VL_Red_BottomCurl",
+            "bone": "Detail_Pony_VL_Red_BottomCurl",
+            "file": "../hana-v7-rig/parts/Pony_VL_Red_BottomCurl.png",
+            "left": 1204,
+            "top": 1328,
+            "width": 251,
+            "height": 195,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VR_White_Outer",
+            "bone": "Pony_VR",
+            "file": "../hana-v7-rig/parts/Pony_VR_White_Outer.png",
+            "left": 2323,
+            "top": 251,
+            "width": 462,
+            "height": 526,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VR_White_Middle",
+            "bone": "Detail_Pony_VR_White_Middle",
+            "file": "../hana-v7-rig/parts/Pony_VR_White_Middle.png",
+            "left": 2376,
+            "top": 300,
+            "width": 405,
+            "height": 971,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VR_White_Curl",
+            "bone": "Detail_Pony_VR_White_Curl",
+            "file": "../hana-v7-rig/parts/Pony_VR_White_Curl.png",
+            "left": 2376,
+            "top": 738,
+            "width": 277,
+            "height": 299,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VR_Blue_OuterCurl",
+            "bone": "Detail_Pony_VR_Blue_OuterCurl",
+            "file": "../hana-v7-rig/parts/Pony_VR_Blue_OuterCurl.png",
+            "left": 2676,
+            "top": 940,
+            "width": 133,
+            "height": 125,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VR_Blue_MiddleCurl",
+            "bone": "Detail_Pony_VR_Blue_MiddleCurl",
+            "file": "../hana-v7-rig/parts/Pony_VR_Blue_MiddleCurl.png",
+            "left": 2436,
+            "top": 1044,
+            "width": 312,
+            "height": 293,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Pony_VR_Blue_BottomCurl",
+            "bone": "Detail_Pony_VR_Blue_BottomCurl",
+            "file": "../hana-v7-rig/parts/Pony_VR_Blue_BottomCurl.png",
+            "left": 2461,
+            "top": 1241,
+            "width": 292,
+            "height": 268,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hair_VL_Outer",
+            "bone": "Detail_Hair_VL_Outer",
+            "file": "../hana-v7-rig/parts/Hair_VL_Outer.png",
+            "left": 1391,
+            "top": 202,
+            "width": 458,
+            "height": 892,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hair_VL_InnerBang",
+            "bone": "Detail_Hair_VL_InnerBang",
+            "file": "../hana-v7-rig/parts/Hair_VL_InnerBang.png",
+            "left": 1548,
+            "top": 242,
+            "width": 293,
+            "height": 586,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hair_VL_CheekUpper",
+            "bone": "Detail_Hair_VL_CheekUpper",
+            "file": "../hana-v7-rig/parts/Hair_VL_CheekUpper.png",
+            "left": 1484,
+            "top": 705,
+            "width": 277,
+            "height": 232,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hair_VL_CheekMiddle",
+            "bone": "Detail_Hair_VL_CheekMiddle",
+            "file": "../hana-v7-rig/parts/Hair_VL_CheekMiddle.png",
+            "left": 1518,
+            "top": 805,
+            "width": 242,
+            "height": 185,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hair_VL_CheekLower",
+            "bone": "Detail_Hair_VL_CheekLower",
+            "file": "../hana-v7-rig/parts/Hair_VL_CheekLower.png",
+            "left": 1602,
+            "top": 936,
+            "width": 202,
+            "height": 151,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hair_VR_Outer",
+            "bone": "Detail_Hair_VR_Outer",
+            "file": "../hana-v7-rig/parts/Hair_VR_Outer.png",
+            "left": 1815,
+            "top": 198,
+            "width": 561,
+            "height": 797,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hair_VR_InnerBang",
+            "bone": "Detail_Hair_VR_InnerBang",
+            "file": "../hana-v7-rig/parts/Hair_VR_InnerBang.png",
+            "left": 1829,
+            "top": 230,
+            "width": 377,
+            "height": 454,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hair_VR_CheekUpper",
+            "bone": "Detail_Hair_VR_CheekUpper",
+            "file": "../hana-v7-rig/parts/Hair_VR_CheekUpper.png",
+            "left": 2124,
+            "top": 440,
+            "width": 145,
+            "height": 365,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hair_VR_CheekMiddle",
+            "bone": "Detail_Hair_VR_CheekMiddle",
+            "file": "../hana-v7-rig/parts/Hair_VR_CheekMiddle.png",
+            "left": 2184,
+            "top": 509,
+            "width": 133,
+            "height": 373,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hair_VR_CheekLower",
+            "bone": "Detail_Hair_VR_CheekLower",
+            "file": "../hana-v7-rig/parts/Hair_VR_CheekLower.png",
+            "left": 2256,
+            "top": 590,
+            "width": 110,
+            "height": 270,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Forelock_Red",
+            "bone": "Detail_Forelock_Red",
+            "file": "../hana-v7-rig/parts/Forelock_Red.png",
+            "left": 1657,
+            "top": 245,
+            "width": 422,
+            "height": 602,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Forelock_Blue",
+            "bone": "Detail_Forelock_Blue",
+            "file": "../hana-v7-rig/parts/Forelock_Blue.png",
+            "left": 1651,
+            "top": 259,
+            "width": 294,
+            "height": 475,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Hair_Ahoge",
+            "bone": "Detail_Hair_Ahoge",
+            "file": "../hana-v7-rig/parts/Hair_Ahoge.png",
+            "left": 1647,
+            "top": 17,
+            "width": 289,
+            "height": 258,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Forelock_Blue_TipUpper",
+            "bone": "Detail_Forelock_Blue_TipUpper",
+            "file": "../hana-v7-rig/parts/Forelock_Blue_TipUpper.png",
+            "left": 1727,
+            "top": 506,
+            "width": 217,
+            "height": 141,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Forelock_Blue_TipMiddle",
+            "bone": "Detail_Forelock_Blue_TipMiddle",
+            "file": "../hana-v7-rig/parts/Forelock_Blue_TipMiddle.png",
+            "left": 1698,
+            "top": 566,
+            "width": 225,
+            "height": 141,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Forelock_Blue_TipLower",
+            "bone": "Detail_Forelock_Blue_TipLower",
+            "file": "../hana-v7-rig/parts/Forelock_Blue_TipLower.png",
+            "left": 1725,
+            "top": 631,
+            "width": 207,
+            "height": 104,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VL_Sclera",
+            "bone": "Head",
+            "file": "parts/Eye_VL_Sclera.png",
+            "left": 1653,
+            "top": 770,
+            "width": 200,
+            "height": 116,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VL_Iris",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VL_Iris.png",
+            "left": 1700,
+            "top": 776,
+            "width": 152,
+            "height": 100,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VL_Iris_UpperShade",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VL_Iris_UpperShade.png",
+            "left": 1697,
+            "top": 764,
+            "width": 154,
+            "height": 89,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VL_Pupil",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VL_Pupil.png",
+            "left": 1736,
+            "top": 770,
+            "width": 82,
+            "height": 85,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VL_Catchlight",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VL_Catchlight.png",
+            "left": 1738,
+            "top": 767,
+            "width": 71,
+            "height": 71,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VL_OuterCorner",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VL_OuterCorner.png",
+            "left": 1608,
+            "top": 782,
+            "width": 134,
+            "height": 97,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VL_UpperLashes",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VL_UpperLashes.png",
+            "left": 1601,
+            "top": 734,
+            "width": 272,
+            "height": 124,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VL_LowerLid",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VL_LowerLid.png",
+            "left": 1699,
+            "top": 793,
+            "width": 161,
+            "height": 94,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VL_UpperLid",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VL_UpperLid.png",
+            "left": 1659,
+            "top": 732,
+            "width": 162,
+            "height": 73,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VR_Sclera",
+            "bone": "Head",
+            "file": "parts/Eye_VR_Sclera.png",
+            "left": 1945,
+            "top": 690,
+            "width": 229,
+            "height": 126,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VR_Iris",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VR_Iris.png",
+            "left": 1984,
+            "top": 712,
+            "width": 153,
+            "height": 98,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VR_Iris_UpperShade",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VR_Iris_UpperShade.png",
+            "left": 1983,
+            "top": 691,
+            "width": 154,
+            "height": 98,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VR_Pupil",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VR_Pupil.png",
+            "left": 2021,
+            "top": 698,
+            "width": 78,
+            "height": 92,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VR_Catchlight",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VR_Catchlight.png",
+            "left": 2023,
+            "top": 704,
+            "width": 71,
+            "height": 72,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VR_LowerReflection",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VR_LowerReflection.png",
+            "left": 2021,
+            "top": 726,
+            "width": 84,
+            "height": 79,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VR_OuterCorner",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VR_OuterCorner.png",
+            "left": 2090,
+            "top": 688,
+            "width": 107,
+            "height": 105,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VR_UpperLashes",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VR_UpperLashes.png",
+            "left": 1945,
+            "top": 651,
+            "width": 269,
+            "height": 148,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VR_LowerLid",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VR_LowerLid.png",
+            "left": 1988,
+            "top": 737,
+            "width": 160,
+            "height": 75,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Eye_VR_UpperLid",
+            "bone": "Head",
+            "file": "../hana-v7-rig/parts/Eye_VR_UpperLid.png",
+            "left": 1941,
+            "top": 661,
+            "width": 174,
+            "height": 108,
+            "defaultOpacity": 1
+        },
+        {
+            "id": "Mouth_Open",
+            "bone": "Head",
+            "file": "parts/Mouth_Open.png",
+            "left": 1887,
+            "top": 913,
+            "width": 118,
+            "height": 44,
+            "defaultOpacity": 0
+        },
+        {
+            "id": "Eye_VL_Tear",
+            "bone": "Head",
+            "file": "parts/Eye_VL_Tear.png",
+            "left": 1752,
+            "top": 842,
+            "width": 22,
+            "height": 88,
+            "defaultOpacity": 0
+        },
+        {
+            "id": "Eye_VR_Tear",
+            "bone": "Head",
+            "file": "parts/Eye_VR_Tear.png",
+            "left": 2047,
+            "top": 773,
+            "width": 22,
+            "height": 88,
+            "defaultOpacity": 0
+        }
+    ],
+    "nativeModelCreated": true,
+    "nativeModelFile": "umamo/hana.cmo3"
+}

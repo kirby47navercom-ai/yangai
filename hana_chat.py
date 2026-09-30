@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from hana_voice import VOICE_SCHEMA, normalize_voice, render_voice_wav, voice_speed
+from hana_avatar import EXPRESSIONS
 
 
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
@@ -363,7 +364,26 @@ def _screen_scene_key(text: str) -> set[str]:
     return {token for token in _topic_tokens(text) if token not in generic}
 
 
-def play_wav_file(audio_path: Path, stop_event: threading.Event | None = None) -> None:
+def wav_levels(wav_file) -> list[float]:
+    """50ms PCM RMS windows; stereo panning remains part of the actual played signal."""
+    import numpy as np
+    width = wav_file.getsampwidth()
+    raw = wav_file.readframes(wav_file.getnframes())
+    if width == 1:
+        samples = (np.frombuffer(raw, dtype=np.uint8).astype(float) - 128) / 128
+    elif width in (2, 4):
+        samples = np.frombuffer(raw, dtype='<i' + str(width)).astype(float) / (2 ** (width * 8 - 1))
+    elif width == 3:
+        b = np.frombuffer(raw, dtype=np.uint8).reshape(-1, 3).astype(np.int32)
+        n = b[:, 0] | (b[:, 1] << 8) | (b[:, 2] << 16)
+        samples = ((n ^ 0x800000) - 0x800000).astype(float) / 8388608
+    else:
+        return []
+    size = max(1, int(wav_file.getframerate() * .05) * wav_file.getnchannels())
+    return [float(np.sqrt(np.mean(samples[i:i + size] ** 2))) for i in range(0, len(samples), size)]
+
+
+def play_wav_file(audio_path: Path, stop_event: threading.Event | None = None, on_level=None) -> None:
     """Play a generated WAV through the Windows default output device."""
     if os.name != "nt":
         raise RuntimeError("윈도우 기본 오디오 재생은 윈도우에서만 지원해")
@@ -372,18 +392,33 @@ def play_wav_file(audio_path: Path, stop_event: threading.Event | None = None) -
     with wave.open(str(audio_path), "rb") as wav_file:
         frame_rate = wav_file.getframerate()
         frame_count = wav_file.getnframes()
+        levels = wav_levels(wav_file) if on_level else []
     if frame_rate <= 0 or frame_count <= 0:
         raise RuntimeError("생성된 음성 파일이 비어 있어")
 
-    winsound.PlaySound(str(audio_path), winsound.SND_FILENAME | winsound.SND_ASYNC)
-    deadline = time.monotonic() + (frame_count / frame_rate) + 0.15
+    if stop_event and stop_event.is_set():
+        if on_level:
+            on_level(0)
+        return
+    started = time.monotonic()
+    deadline = started + (frame_count / frame_rate) + 0.15
+    def level(value):
+        if on_level:
+            try:
+                on_level(value)
+            except Exception:
+                pass  # Animation failure must not stop valid audio playback.
     try:
+        winsound.PlaySound(str(audio_path), winsound.SND_FILENAME | winsound.SND_ASYNC)
         while time.monotonic() < deadline:
             if stop_event and stop_event.is_set():
                 break
+            index = int((time.monotonic() - started) / .05)
+            level(levels[index] if index < len(levels) else 0)
             time.sleep(0.05)
     finally:
         winsound.PlaySound(None, winsound.SND_PURGE)
+        level(0)
 
 
 def interrupt_speech(worker) -> None:
@@ -490,7 +525,8 @@ class TTSWorker:
                 return
             apply_voice_effects(self, audio_path, voice, cancel)
             if not cancel.is_set() and not self.stop_event.is_set():
-                play_wav_file(audio_path, cancel)
+                callback = getattr(self, "on_audio_level", None)
+                play_wav_file(audio_path, cancel, callback) if callback else play_wav_file(audio_path, cancel)
         finally:
             audio_path.unlink(missing_ok=True)
 
@@ -755,7 +791,8 @@ class GPTSoVITSTTSWorker:
             apply_voice_effects(self, audio_path, voice, cancel)
             self._log(f"음성 연출: {voice}, 후처리 {time.monotonic() - started:.3f}s")
             if not cancel.is_set() and not self.stop_event.is_set():
-                play_wav_file(audio_path, cancel)
+                callback = getattr(self, "on_audio_level", None)
+                play_wav_file(audio_path, cancel, callback) if callback else play_wav_file(audio_path, cancel)
             self._log("윈도우 기본 장치 재생 완료")
         finally:
             audio_path.unlink(missing_ok=True)
@@ -1283,12 +1320,13 @@ REPLY_SCHEMA = {
                    **{name: {"type": "string"} for name in REPLY_STATE_FIELDS},
                    "topic_status": {"type": "string", "enum": ["open", "complete", "awaiting_user"]},
                    "voice": VOICE_SCHEMA,
+                   "expression": {"type": "string", "enum": list(EXPRESSIONS)},
                    "remember": {"type": "array", "items": {"type": "string"}}},
-    "required": [*REPLY_STATE_FIELDS, "speech", "remember", "voice"],
+    "required": [*REPLY_STATE_FIELDS, "speech", "remember", "voice", "expression"],
     "additionalProperties": False,
 }
 REPLY_FORMAT_PROMPT = (
-    "\n\n[출력 형식]\nJSON 객체로 speech, topic, stance, emotion, next_intent, topic_status, remember, voice를 작성한다. "
+    "\n\n[출력 형식]\nJSON 객체로 speech, topic, stance, emotion, next_intent, topic_status, remember, voice, expression을 작성한다. "
     "speech만 시청자에게 들려주는 대사다. 나머지는 다음 차례를 위한 짧은 상태 메모이며 각 한 구절로 쓴다. "
     "topic은 현재 화제, stance는 그 화제에 대한 네 구체적인 의견이나 선택, emotion은 현재 감정이다. "
     "stance에 '공감하기', '설명하기' 같은 작업 지시를 쓰지 않는다. 실제로 무엇을 좋아하거나 싫어하는지, "
@@ -1312,12 +1350,17 @@ REPLY_FORMAT_PROMPT = (
     "soft도 숨소리로 바꾸지 않는 보통 발성이다. "
     "사용자가 매번 지시하지 않아도 말투와 좌우 위치는 실제 대화 상황과 감정에 맞춰 스스로 선택한다. "
     "무작위로 위치를 바꾸거나 매번 과장하지 않는다. 연출 이름을 speech에 읽거나 행동 지문으로 쓰지 않는다."
+    " expression은 이번 대사에 맞는 얼굴 표정이다. neutral(평상시), smile(미소), happy(기쁨), "
+    "sad(슬픔), cry(눈물), angry(화남), surprised(놀람) 중 하나를 고른다. "
+    "문장에 감정 단어가 있다는 이유만으로 고르지 말고 하나 자신의 태도와 실제 대화 맥락에 맞춘다. "
+    "기본은 neutral이며 표정 이름이나 설정 지시를 대사로 읽지 않는다."
 ) + EVIDENCE_RULES
 
 
 def apply_reply_state(memory: dict, state: dict) -> None:
     memory["broadcast_state"] = {key: state.get(key, "") for key in (*REPLY_STATE_FIELDS, "action", "basis")}
     memory["broadcast_state"]["voice"] = normalize_voice(state.get("voice"))
+    memory["broadcast_state"]["expression"] = state.get("expression", "neutral")
     quotes = memory.get("user_quotes", []) + state.get("remember", [])
     # Keep exact user statements separate from model-written summaries. Latest corrections take precedence.
     memory["user_quotes"] = list(dict.fromkeys(reversed(quotes)))[::-1][-30:]
@@ -1815,6 +1858,8 @@ def generate_reply(config: dict, messages: list[dict], recent_answers=(), contro
                 state.update({key: plan.get(key, "") if plan else "" for key in ("action", "basis")})
                 state["spoken_point"] = answer
                 state["voice"] = normalize_voice(payload.get("voice"), config)
+                expression = payload.get("expression")
+                state["expression"] = expression if isinstance(expression, str) and expression in EXPRESSIONS else "neutral"
                 user_text = messages[-1]["content"] if messages and messages[-1]["role"] == "user" and not control_text else ""
                 state["remember"] = [quote.strip() for quote in payload["remember"]
                                      if isinstance(quote, str) and 2 <= len(quote.strip()) <= 300

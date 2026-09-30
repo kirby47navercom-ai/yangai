@@ -1,0 +1,7 @@
+{
+  "psdPixelRoundTrip": "PASS",
+  "layerOrder": "PASS",
+  "psdCompositeBadPixels": 8335,
+  "psdCompositeMeanMaxError": 0.05063708623250326,
+  "largeHiddenAnatomyRepainted": false
+}

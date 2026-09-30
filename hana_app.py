@@ -7,6 +7,7 @@ import tkinter as tk
 from collections import deque
 from pathlib import Path
 from tkinter import scrolledtext
+from hana_avatar import AvatarState, EXPRESSIONS, create_avatar
 
 from hana_chat import (
     CONFIG_FILE,
@@ -206,7 +207,11 @@ class HanaApp:
             if item.get("role") == "assistant" and item.get("content")
         ][-6:]
         self.screen_context = ScreenContext()
+        self.avatar_state = AvatarState(lip_gain=self.config.get("avatar_lip_gain", 5))
+        self.avatar_state.set_expression(self.memory.get("broadcast_state", {}).get("expression", "neutral"))
         self.tts = self._create_tts()
+        if self.tts:
+            self.tts.on_audio_level = self.avatar_state.audio_level
         self.tts_status = ""
         self.recognizer = SpeechRecognizer(self.config)
         self.mic = MicLoop(self.recognizer, self.tts, self._on_mic_text, self._on_mic_error, self.config,
@@ -312,6 +317,35 @@ class HanaApp:
                            bg="#111827", fg="#e5e7eb", selectcolor="#1f2937").pack(side="left", padx=(0, 12))
 
     def _load_avatar(self) -> None:
+        self.avatar_widget = None
+        def failed(message):
+            if self.avatar_widget:
+                self.avatar_widget.destroy()
+                self.avatar_widget = None
+            self._load_static_avatar()
+            self._system("캐릭터 움직임을 시작하지 못했어: " + message)
+        try:
+            self.avatar_widget = create_avatar(self.avatar_frame,
+                ROOT / "assets/live2d/hana-v8-live/umamo/hana.model3.json", self.avatar_state, failed)
+            options = tk.Frame(self.avatar_frame, bg="#172033")
+            options.pack(side="bottom", fill="x", pady=6)
+            self.mouse_follow = tk.BooleanVar(value=True)
+            tk.Checkbutton(options, text="마우스 따라보기", variable=self.mouse_follow,
+                command=lambda: setattr(self.avatar_widget, "follow_mouse", self.mouse_follow.get()) if self.avatar_widget else None,
+                bg="#172033", fg="#e5e7eb", selectcolor="#1f2937").pack()
+            row = tk.Frame(options, bg="#172033")
+            row.pack()
+            tk.Label(row, text="표정 확인", bg="#172033", fg="#94a3b8").pack(side="left")
+            names = dict(zip(("평상시", "미소", "기쁨", "슬픔", "눈물", "화남", "놀람"), EXPRESSIONS))
+            choice = tk.StringVar(value="평상시")
+            tk.OptionMenu(row, choice, *names, command=lambda name: self.avatar_state.set_expression(names[name])).pack(side="left")
+            self.avatar_widget.pack(fill="both", expand=True)
+            return
+        except Exception as error:
+            self.root.after_idle(lambda message=str(error): self._system("캐릭터 움직임을 시작하지 못했어: " + message))
+        self._load_static_avatar()
+
+    def _load_static_avatar(self) -> None:
         path = ROOT / "assets" / "hana_reference.jpg"
         try:
             from PIL import Image, ImageTk
@@ -573,6 +607,8 @@ class HanaApp:
         if not answer or cancelled():
             return ""
         apply_reply_state(self.memory, state)
+        if hasattr(self, "avatar_state"):
+            self.avatar_state.set_expression(state.get("expression", "neutral"))
         self.root.after(0, lambda: self._line("하나", answer, "hana"))
         # One accepted utterance -> one synthesis/playback, not synthesize-wait per sentence.
         self._speak(answer, state.get("voice"))
@@ -757,6 +793,12 @@ class HanaApp:
 
 
 def main() -> None:
+    import sys
+    if '--avatar-demo' in sys.argv or '--avatar-check' in sys.argv:
+        from hana_avatar import demo
+        if demo(check='--avatar-check' in sys.argv) is False:
+            raise SystemExit(1)
+        return
     root = tk.Tk()
     HanaApp(root)
     root.mainloop()

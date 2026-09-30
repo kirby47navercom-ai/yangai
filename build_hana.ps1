@@ -33,6 +33,9 @@ try {
         --collect-all piper `
         --collect-all faster_whisper `
         --collect-all ctranslate2 `
+        --collect-all live2d `
+        --collect-all pyopengltk `
+        --collect-all OpenGL `
         --hidden-import sounddevice `
         --hidden-import winsound `
         (Join-Path $Root 'hana_app.py')

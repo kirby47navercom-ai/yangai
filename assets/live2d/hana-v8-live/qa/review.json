@@ -1,0 +1,23 @@
+{
+  "status": "working-animation-draft-not-final-art",
+  "fullBodyFinished": false,
+  "largeHiddenAnatomyRepainted": false,
+  "officialCoreConsistency": true,
+  "nativeFaceAndMotionRenderReviewed": true,
+  "integratedGuiSurfaceTest": "PASS",
+  "windowedExeSmokeTest": "PASS: bundled renderer, 82 parameters, exit code 0",
+  "exeChecksStartedMicScreenLlmOrTts": false,
+  "moc3Sha256": "b16c20fbb0dc4cf5235edde6d6b322f408c0d3937160af1224f529263e699b13",
+  "original4kSha256Unchanged": "f91e25e12a870c202511d97912caa3ed196563a6e8052a314b0f965ab571e00a",
+  "unitAndRegressionChecks": 78,
+  "audioPlaybackCallbackTest": "PASS with mocked output device",
+  "audiblePlaybackHumanVerified": false,
+  "largeMotionVisualGate": "FAIL: missing hidden surfaces and remaining split residues",
+  "remaining": [
+    "Shoulder/hair gaps at large combined deformation",
+    "Small cuff/sleeve/accessory split residues",
+    "Some leg cut seams and a small tail-tip piece",
+    "Phoneme-specific mouth shapes and precise output-device latency calibration",
+    "Independent fine physics and final contour-tailored topology"
+  ]
+}
