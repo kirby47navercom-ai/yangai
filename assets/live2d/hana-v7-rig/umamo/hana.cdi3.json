@@ -1,0 +1,1191 @@
+{
+	"Version": 3,
+	"Parameters": [
+		{
+			"Id": "ParamRootZ",
+			"GroupId": "",
+			"Name": "Root"
+		},
+		{
+			"Id": "ParamBodyAngleZ",
+			"GroupId": "",
+			"Name": "Body"
+		},
+		{
+			"Id": "ParamAngleZ",
+			"GroupId": "",
+			"Name": "Head"
+		},
+		{
+			"Id": "ParamArmVL",
+			"GroupId": "",
+			"Name": "Arm_VL"
+		},
+		{
+			"Id": "ParamForearmVL",
+			"GroupId": "",
+			"Name": "Forearm_VL"
+		},
+		{
+			"Id": "ParamWristVL",
+			"GroupId": "",
+			"Name": "Wrist_VL"
+		},
+		{
+			"Id": "ParamHandVL",
+			"GroupId": "",
+			"Name": "Hand_VL"
+		},
+		{
+			"Id": "ParamLegVL",
+			"GroupId": "",
+			"Name": "Thigh_VL"
+		},
+		{
+			"Id": "ParamKneeVL",
+			"GroupId": "",
+			"Name": "Shin_VL"
+		},
+		{
+			"Id": "ParamAnkleVL",
+			"GroupId": "",
+			"Name": "Foot_VL"
+		},
+		{
+			"Id": "ParamHairVL",
+			"GroupId": "",
+			"Name": "Pony_VL"
+		},
+		{
+			"Id": "ParamSkirtVL",
+			"GroupId": "",
+			"Name": "Skirt_VL"
+		},
+		{
+			"Id": "ParamJacketVL",
+			"GroupId": "",
+			"Name": "Jacket_VL"
+		},
+		{
+			"Id": "ParamCapeVL",
+			"GroupId": "",
+			"Name": "Cape_VL"
+		},
+		{
+			"Id": "ParamArmVR",
+			"GroupId": "",
+			"Name": "Arm_VR"
+		},
+		{
+			"Id": "ParamForearmVR",
+			"GroupId": "",
+			"Name": "Forearm_VR"
+		},
+		{
+			"Id": "ParamWristVR",
+			"GroupId": "",
+			"Name": "Wrist_VR"
+		},
+		{
+			"Id": "ParamHandVR",
+			"GroupId": "",
+			"Name": "Hand_VR"
+		},
+		{
+			"Id": "ParamLegVR",
+			"GroupId": "",
+			"Name": "Thigh_VR"
+		},
+		{
+			"Id": "ParamKneeVR",
+			"GroupId": "",
+			"Name": "Shin_VR"
+		},
+		{
+			"Id": "ParamAnkleVR",
+			"GroupId": "",
+			"Name": "Foot_VR"
+		},
+		{
+			"Id": "ParamHairVR",
+			"GroupId": "",
+			"Name": "Pony_VR"
+		},
+		{
+			"Id": "ParamSkirtVR",
+			"GroupId": "",
+			"Name": "Skirt_VR"
+		},
+		{
+			"Id": "ParamJacketVR",
+			"GroupId": "",
+			"Name": "Jacket_VR"
+		},
+		{
+			"Id": "ParamCapeVR",
+			"GroupId": "",
+			"Name": "Cape_VR"
+		},
+		{
+			"Id": "ParamTailBase",
+			"GroupId": "",
+			"Name": "Tail_Base"
+		},
+		{
+			"Id": "ParamTailLower",
+			"GroupId": "",
+			"Name": "Tail_Lower"
+		},
+		{
+			"Id": "ParamTailRise",
+			"GroupId": "",
+			"Name": "Tail_Rise"
+		},
+		{
+			"Id": "ParamTailTip",
+			"GroupId": "",
+			"Name": "Tail_Tip"
+		},
+		{
+			"Id": "ParamBow",
+			"GroupId": "",
+			"Name": "Bow"
+		},
+		{
+			"Id": "ParamTie",
+			"GroupId": "",
+			"Name": "Tie"
+		},
+		{
+			"Id": "ParamSway_Boot_VL_Tassel",
+			"GroupId": "",
+			"Name": "Detail_Boot_VL_Tassel"
+		},
+		{
+			"Id": "ParamSway_Boot_VR_Tassel",
+			"GroupId": "",
+			"Name": "Detail_Boot_VR_Tassel"
+		},
+		{
+			"Id": "ParamSway_Pendant_VL_Cord",
+			"GroupId": "",
+			"Name": "Detail_Pendant_VL_Cord"
+		},
+		{
+			"Id": "ParamSway_Pendant_VR_Cord",
+			"GroupId": "",
+			"Name": "Detail_Pendant_VR_Cord"
+		},
+		{
+			"Id": "ParamSway_Hip_VL_RedLoop",
+			"GroupId": "",
+			"Name": "Detail_Hip_VL_RedLoop"
+		},
+		{
+			"Id": "ParamSway_Hip_VR_RedLoop",
+			"GroupId": "",
+			"Name": "Detail_Hip_VR_RedLoop"
+		},
+		{
+			"Id": "ParamSway_Sleeve_VL_Tassel",
+			"GroupId": "",
+			"Name": "Detail_Sleeve_VL_Tassel"
+		},
+		{
+			"Id": "ParamSway_Sleeve_VR_Tassel",
+			"GroupId": "",
+			"Name": "Detail_Sleeve_VR_Tassel"
+		},
+		{
+			"Id": "ParamSway_Pony_VL_White_Middle",
+			"GroupId": "",
+			"Name": "Detail_Pony_VL_White_Middle"
+		},
+		{
+			"Id": "ParamSway_Pony_VL_White_Lower",
+			"GroupId": "",
+			"Name": "Detail_Pony_VL_White_Lower"
+		},
+		{
+			"Id": "ParamSway_Pony_VL_Red_OuterCurl",
+			"GroupId": "",
+			"Name": "Detail_Pony_VL_Red_OuterCurl"
+		},
+		{
+			"Id": "ParamSway_Pony_VL_Red_MiddleCurl",
+			"GroupId": "",
+			"Name": "Detail_Pony_VL_Red_MiddleCurl"
+		},
+		{
+			"Id": "ParamSway_Pony_VL_Red_BottomCurl",
+			"GroupId": "",
+			"Name": "Detail_Pony_VL_Red_BottomCurl"
+		},
+		{
+			"Id": "ParamSway_Pony_VR_White_Middle",
+			"GroupId": "",
+			"Name": "Detail_Pony_VR_White_Middle"
+		},
+		{
+			"Id": "ParamSway_Pony_VR_White_Curl",
+			"GroupId": "",
+			"Name": "Detail_Pony_VR_White_Curl"
+		},
+		{
+			"Id": "ParamSway_Pony_VR_Blue_OuterCurl",
+			"GroupId": "",
+			"Name": "Detail_Pony_VR_Blue_OuterCurl"
+		},
+		{
+			"Id": "ParamSway_Pony_VR_Blue_MiddleCurl",
+			"GroupId": "",
+			"Name": "Detail_Pony_VR_Blue_MiddleCurl"
+		},
+		{
+			"Id": "ParamSway_Pony_VR_Blue_BottomCurl",
+			"GroupId": "",
+			"Name": "Detail_Pony_VR_Blue_BottomCurl"
+		},
+		{
+			"Id": "ParamSway_Hair_VL_Outer",
+			"GroupId": "",
+			"Name": "Detail_Hair_VL_Outer"
+		},
+		{
+			"Id": "ParamSway_Hair_VL_InnerBang",
+			"GroupId": "",
+			"Name": "Detail_Hair_VL_InnerBang"
+		},
+		{
+			"Id": "ParamSway_Hair_VL_CheekUpper",
+			"GroupId": "",
+			"Name": "Detail_Hair_VL_CheekUpper"
+		},
+		{
+			"Id": "ParamSway_Hair_VL_CheekMiddle",
+			"GroupId": "",
+			"Name": "Detail_Hair_VL_CheekMiddle"
+		},
+		{
+			"Id": "ParamSway_Hair_VL_CheekLower",
+			"GroupId": "",
+			"Name": "Detail_Hair_VL_CheekLower"
+		},
+		{
+			"Id": "ParamSway_Hair_VR_Outer",
+			"GroupId": "",
+			"Name": "Detail_Hair_VR_Outer"
+		},
+		{
+			"Id": "ParamSway_Hair_VR_InnerBang",
+			"GroupId": "",
+			"Name": "Detail_Hair_VR_InnerBang"
+		},
+		{
+			"Id": "ParamSway_Hair_VR_CheekUpper",
+			"GroupId": "",
+			"Name": "Detail_Hair_VR_CheekUpper"
+		},
+		{
+			"Id": "ParamSway_Hair_VR_CheekMiddle",
+			"GroupId": "",
+			"Name": "Detail_Hair_VR_CheekMiddle"
+		},
+		{
+			"Id": "ParamSway_Hair_VR_CheekLower",
+			"GroupId": "",
+			"Name": "Detail_Hair_VR_CheekLower"
+		},
+		{
+			"Id": "ParamSway_Forelock_Red",
+			"GroupId": "",
+			"Name": "Detail_Forelock_Red"
+		},
+		{
+			"Id": "ParamSway_Forelock_Blue",
+			"GroupId": "",
+			"Name": "Detail_Forelock_Blue"
+		},
+		{
+			"Id": "ParamSway_Hair_Ahoge",
+			"GroupId": "",
+			"Name": "Detail_Hair_Ahoge"
+		},
+		{
+			"Id": "ParamSway_Forelock_Blue_TipUpper",
+			"GroupId": "",
+			"Name": "Detail_Forelock_Blue_TipUpper"
+		},
+		{
+			"Id": "ParamSway_Forelock_Blue_TipMiddle",
+			"GroupId": "",
+			"Name": "Detail_Forelock_Blue_TipMiddle"
+		},
+		{
+			"Id": "ParamSway_Forelock_Blue_TipLower",
+			"GroupId": "",
+			"Name": "Detail_Forelock_Blue_TipLower"
+		}
+	],
+	"ParameterGroups": [],
+	"Parts": [
+		{
+			"Id": "Part1",
+			"Name": "01_Tail"
+		},
+		{
+			"Id": "Part2",
+			"Name": "02_Legs"
+		},
+		{
+			"Id": "Part3",
+			"Name": "03_Boots"
+		},
+		{
+			"Id": "Part4",
+			"Name": "05_Sleeves"
+		},
+		{
+			"Id": "Part5",
+			"Name": "06_Hands"
+		},
+		{
+			"Id": "Part6",
+			"Name": "07_Cuffs"
+		},
+		{
+			"Id": "Part7",
+			"Name": "04_Skirt"
+		},
+		{
+			"Id": "Part8",
+			"Name": "08_Torso"
+		},
+		{
+			"Id": "Part9",
+			"Name": "09_Jacket"
+		},
+		{
+			"Id": "Part10",
+			"Name": "12_Hair"
+		},
+		{
+			"Id": "Part11",
+			"Name": "10_Cape"
+		},
+		{
+			"Id": "Part12",
+			"Name": "11_Neck"
+		},
+		{
+			"Id": "Part13",
+			"Name": "20_Hardware"
+		},
+		{
+			"Id": "Part14",
+			"Name": "21_SkirtDecor"
+		},
+		{
+			"Id": "Part15",
+			"Name": "18_ArmDetails"
+		},
+		{
+			"Id": "Part16",
+			"Name": "13_Face"
+		},
+		{
+			"Id": "Part17",
+			"Name": "15_Eyes"
+		},
+		{
+			"Id": "Part18",
+			"Name": "16_FaceDetails"
+		},
+		{
+			"Id": "Part19",
+			"Name": "19_HairClips"
+		},
+		{
+			"Id": "Part20",
+			"Name": "17_Bow"
+		},
+		{
+			"Id": "Part21",
+			"Name": "14_FrontHair"
+		},
+		{
+			"Id": "Part22",
+			"Name": "15_Eye_VL"
+		},
+		{
+			"Id": "Part23",
+			"Name": "15_Eye_VR"
+		}
+	],
+	"Drawables": [
+		{
+			"Id": "ArtMesh1",
+			"Name": "Tail_Root"
+		},
+		{
+			"Id": "ArtMesh2",
+			"Name": "Tail_LowerArc"
+		},
+		{
+			"Id": "ArtMesh3",
+			"Name": "Tail_RisingArc"
+		},
+		{
+			"Id": "ArtMesh4",
+			"Name": "Tail_TipWithTransition"
+		},
+		{
+			"Id": "ArtMesh5",
+			"Name": "Leg_VL_Upper"
+		},
+		{
+			"Id": "ArtMesh6",
+			"Name": "Leg_VR_Upper"
+		},
+		{
+			"Id": "ArtMesh7",
+			"Name": "Leg_VL_Lower"
+		},
+		{
+			"Id": "ArtMesh8",
+			"Name": "Leg_VR_Lower"
+		},
+		{
+			"Id": "ArtMesh9",
+			"Name": "Leg_VL_Opening"
+		},
+		{
+			"Id": "ArtMesh10",
+			"Name": "Leg_VR_Opening"
+		},
+		{
+			"Id": "ArtMesh11",
+			"Name": "Boot_VL_Main"
+		},
+		{
+			"Id": "ArtMesh12",
+			"Name": "Boot_VR_Main"
+		},
+		{
+			"Id": "ArtMesh13",
+			"Name": "Boot_VL_Sole"
+		},
+		{
+			"Id": "ArtMesh14",
+			"Name": "Boot_VR_Sole"
+		},
+		{
+			"Id": "ArtMesh15",
+			"Name": "Boot_VL_Toe"
+		},
+		{
+			"Id": "ArtMesh16",
+			"Name": "Boot_VR_Toe"
+		},
+		{
+			"Id": "ArtMesh17",
+			"Name": "Boot_VL_UpperStrap"
+		},
+		{
+			"Id": "ArtMesh18",
+			"Name": "Boot_VL_LowerStrap"
+		},
+		{
+			"Id": "ArtMesh19",
+			"Name": "Boot_VR_UpperStrap"
+		},
+		{
+			"Id": "ArtMesh20",
+			"Name": "Boot_VR_LowerStrap"
+		},
+		{
+			"Id": "ArtMesh21",
+			"Name": "Sleeve_VL_Main"
+		},
+		{
+			"Id": "ArtMesh22",
+			"Name": "Sleeve_VR_Main"
+		},
+		{
+			"Id": "ArtMesh23",
+			"Name": "Sleeve_VL_Lower"
+		},
+		{
+			"Id": "ArtMesh24",
+			"Name": "Sleeve_VR_Lower"
+		},
+		{
+			"Id": "ArtMesh25",
+			"Name": "Hand_VL"
+		},
+		{
+			"Id": "ArtMesh26",
+			"Name": "Hand_VR"
+		},
+		{
+			"Id": "ArtMesh27",
+			"Name": "Cuff_VL"
+		},
+		{
+			"Id": "ArtMesh28",
+			"Name": "Cuff_VR"
+		},
+		{
+			"Id": "ArtMesh29",
+			"Name": "Skirt_Center"
+		},
+		{
+			"Id": "ArtMesh30",
+			"Name": "Skirt_VL_Outer"
+		},
+		{
+			"Id": "ArtMesh31",
+			"Name": "Skirt_VR_Outer"
+		},
+		{
+			"Id": "ArtMesh32",
+			"Name": "Skirt_VL_Panel"
+		},
+		{
+			"Id": "ArtMesh33",
+			"Name": "Skirt_VR_Panel"
+		},
+		{
+			"Id": "ArtMesh34",
+			"Name": "Skirt_VL_RedInset"
+		},
+		{
+			"Id": "ArtMesh35",
+			"Name": "Skirt_VR_BlueInset"
+		},
+		{
+			"Id": "ArtMesh36",
+			"Name": "Skirt_VL_FrontPiping"
+		},
+		{
+			"Id": "ArtMesh37",
+			"Name": "Skirt_VR_FrontPiping"
+		},
+		{
+			"Id": "ArtMesh38",
+			"Name": "Inner_Bodice"
+		},
+		{
+			"Id": "ArtMesh39",
+			"Name": "Waist_Corset"
+		},
+		{
+			"Id": "ArtMesh40",
+			"Name": "Waist_UpperBelt"
+		},
+		{
+			"Id": "ArtMesh41",
+			"Name": "Waist_LowerBelt"
+		},
+		{
+			"Id": "ArtMesh42",
+			"Name": "Necktie"
+		},
+		{
+			"Id": "ArtMesh43",
+			"Name": "Necktie_WhiteBand"
+		},
+		{
+			"Id": "ArtMesh44",
+			"Name": "Necktie_BlueBand"
+		},
+		{
+			"Id": "ArtMesh45",
+			"Name": "Necktie_RedBand"
+		},
+		{
+			"Id": "ArtMesh46",
+			"Name": "Jacket_VL"
+		},
+		{
+			"Id": "ArtMesh47",
+			"Name": "Jacket_VR"
+		},
+		{
+			"Id": "ArtMesh48",
+			"Name": "Jacket_VL_InsideHem"
+		},
+		{
+			"Id": "ArtMesh49",
+			"Name": "Jacket_VR_InsideHem"
+		},
+		{
+			"Id": "ArtMesh50",
+			"Name": "Jacket_VL_Pocket"
+		},
+		{
+			"Id": "ArtMesh51",
+			"Name": "Jacket_VR_Pocket"
+		},
+		{
+			"Id": "ArtMesh52",
+			"Name": "Jacket_VL_PocketFlap"
+		},
+		{
+			"Id": "ArtMesh53",
+			"Name": "Jacket_VR_PocketFlap"
+		},
+		{
+			"Id": "ArtMesh54",
+			"Name": "Hair_CrownBack"
+		},
+		{
+			"Id": "ArtMesh55",
+			"Name": "Pony_VL"
+		},
+		{
+			"Id": "ArtMesh56",
+			"Name": "Pony_VR"
+		},
+		{
+			"Id": "ArtMesh57",
+			"Name": "Pony_VL_White_Outer"
+		},
+		{
+			"Id": "ArtMesh58",
+			"Name": "Pony_VL_White_Middle"
+		},
+		{
+			"Id": "ArtMesh59",
+			"Name": "Pony_VL_White_Lower"
+		},
+		{
+			"Id": "ArtMesh60",
+			"Name": "Pony_VL_Red_OuterCurl"
+		},
+		{
+			"Id": "ArtMesh61",
+			"Name": "Pony_VL_Red_MiddleCurl"
+		},
+		{
+			"Id": "ArtMesh62",
+			"Name": "Pony_VL_Red_BottomCurl"
+		},
+		{
+			"Id": "ArtMesh63",
+			"Name": "Pony_VR_White_Outer"
+		},
+		{
+			"Id": "ArtMesh64",
+			"Name": "Pony_VR_White_Middle"
+		},
+		{
+			"Id": "ArtMesh65",
+			"Name": "Pony_VR_White_Curl"
+		},
+		{
+			"Id": "ArtMesh66",
+			"Name": "Pony_VR_Blue_OuterCurl"
+		},
+		{
+			"Id": "ArtMesh67",
+			"Name": "Pony_VR_Blue_MiddleCurl"
+		},
+		{
+			"Id": "ArtMesh68",
+			"Name": "Pony_VR_Blue_BottomCurl"
+		},
+		{
+			"Id": "ArtMesh69",
+			"Name": "Cape_VL"
+		},
+		{
+			"Id": "ArtMesh70",
+			"Name": "Cape_VR"
+		},
+		{
+			"Id": "ArtMesh71",
+			"Name": "Cape_VL_Cord"
+		},
+		{
+			"Id": "ArtMesh72",
+			"Name": "Collar"
+		},
+		{
+			"Id": "ArtMesh73",
+			"Name": "Boot_VL_UpperGem"
+		},
+		{
+			"Id": "ArtMesh74",
+			"Name": "Boot_VL_LowerGem"
+		},
+		{
+			"Id": "ArtMesh75",
+			"Name": "Boot_VR_UpperGem"
+		},
+		{
+			"Id": "ArtMesh76",
+			"Name": "Boot_VR_LowerGem"
+		},
+		{
+			"Id": "ArtMesh77",
+			"Name": "Boot_VL_Flower"
+		},
+		{
+			"Id": "ArtMesh78",
+			"Name": "Boot_VR_Flower"
+		},
+		{
+			"Id": "ArtMesh79",
+			"Name": "Boot_VL_Tassel"
+		},
+		{
+			"Id": "ArtMesh80",
+			"Name": "Boot_VR_Tassel"
+		},
+		{
+			"Id": "ArtMesh81",
+			"Name": "Hip_VL_Ring"
+		},
+		{
+			"Id": "ArtMesh82",
+			"Name": "Hip_VL_Chain"
+		},
+		{
+			"Id": "ArtMesh83",
+			"Name": "Hip_VR_Ring"
+		},
+		{
+			"Id": "ArtMesh84",
+			"Name": "Hip_VR_Chain"
+		},
+		{
+			"Id": "ArtMesh85",
+			"Name": "Hip_VL_Clasp"
+		},
+		{
+			"Id": "ArtMesh86",
+			"Name": "Hip_VR_Clasp"
+		},
+		{
+			"Id": "ArtMesh87",
+			"Name": "Waist_Button_1"
+		},
+		{
+			"Id": "ArtMesh88",
+			"Name": "Waist_Button_2"
+		},
+		{
+			"Id": "ArtMesh89",
+			"Name": "Waist_Button_3"
+		},
+		{
+			"Id": "ArtMesh90",
+			"Name": "Waist_Button_4"
+		},
+		{
+			"Id": "ArtMesh91",
+			"Name": "Jacket_VL_Zip"
+		},
+		{
+			"Id": "ArtMesh92",
+			"Name": "Jacket_VR_Zip"
+		},
+		{
+			"Id": "ArtMesh93",
+			"Name": "Jacket_VL_Cord"
+		},
+		{
+			"Id": "ArtMesh94",
+			"Name": "Jacket_VR_Cord"
+		},
+		{
+			"Id": "ArtMesh95",
+			"Name": "Jacket_VL_Badge"
+		},
+		{
+			"Id": "ArtMesh96",
+			"Name": "Jacket_VR_Badge"
+		},
+		{
+			"Id": "ArtMesh97",
+			"Name": "Chest_Brooch"
+		},
+		{
+			"Id": "ArtMesh98",
+			"Name": "Shoulder_VL_Buckle"
+		},
+		{
+			"Id": "ArtMesh99",
+			"Name": "Shoulder_VR_Buckle"
+		},
+		{
+			"Id": "ArtMesh100",
+			"Name": "ArmBand_VL_Gem"
+		},
+		{
+			"Id": "ArtMesh101",
+			"Name": "ArmBand_VR_Gem"
+		},
+		{
+			"Id": "ArtMesh102",
+			"Name": "Sleeve_VL_Cord"
+		},
+		{
+			"Id": "ArtMesh103",
+			"Name": "Sleeve_VR_Cord"
+		},
+		{
+			"Id": "ArtMesh104",
+			"Name": "Sleeve_VL_Medallion"
+		},
+		{
+			"Id": "ArtMesh105",
+			"Name": "Sleeve_VR_Medallion"
+		},
+		{
+			"Id": "ArtMesh106",
+			"Name": "Sleeve_VL_Coin"
+		},
+		{
+			"Id": "ArtMesh107",
+			"Name": "Sleeve_VR_Coin"
+		},
+		{
+			"Id": "ArtMesh108",
+			"Name": "SleeveGem_VL_Blue"
+		},
+		{
+			"Id": "ArtMesh109",
+			"Name": "SleeveGem_VL_Red"
+		},
+		{
+			"Id": "ArtMesh110",
+			"Name": "SleeveGem_VL_Gold"
+		},
+		{
+			"Id": "ArtMesh111",
+			"Name": "SleeveGem_VR_Blue"
+		},
+		{
+			"Id": "ArtMesh112",
+			"Name": "SleeveGem_VR_Red"
+		},
+		{
+			"Id": "ArtMesh113",
+			"Name": "SleeveGem_VR_Gold"
+		},
+		{
+			"Id": "ArtMesh114",
+			"Name": "Cuff_VL_UpperButton"
+		},
+		{
+			"Id": "ArtMesh115",
+			"Name": "Cuff_VL_LowerButton"
+		},
+		{
+			"Id": "ArtMesh116",
+			"Name": "Cuff_VR_UpperButton"
+		},
+		{
+			"Id": "ArtMesh117",
+			"Name": "Cuff_VR_LowerButton"
+		},
+		{
+			"Id": "ArtMesh118",
+			"Name": "Cape_VL_Pin"
+		},
+		{
+			"Id": "ArtMesh119",
+			"Name": "Cape_VR_Clasp"
+		},
+		{
+			"Id": "ArtMesh120",
+			"Name": "Skirt_Emblem_1"
+		},
+		{
+			"Id": "ArtMesh121",
+			"Name": "Skirt_Emblem_2"
+		},
+		{
+			"Id": "ArtMesh122",
+			"Name": "Skirt_Emblem_3"
+		},
+		{
+			"Id": "ArtMesh123",
+			"Name": "Skirt_Emblem_4"
+		},
+		{
+			"Id": "ArtMesh124",
+			"Name": "Skirt_Emblem_5"
+		},
+		{
+			"Id": "ArtMesh125",
+			"Name": "Skirt_Emblem_6"
+		},
+		{
+			"Id": "ArtMesh126",
+			"Name": "Pendant_VL_Cord"
+		},
+		{
+			"Id": "ArtMesh127",
+			"Name": "Pendant_VL_Flower"
+		},
+		{
+			"Id": "ArtMesh128",
+			"Name": "Pendant_VL_Drop"
+		},
+		{
+			"Id": "ArtMesh129",
+			"Name": "Pendant_VR_Cord"
+		},
+		{
+			"Id": "ArtMesh130",
+			"Name": "Pendant_VR_Flower"
+		},
+		{
+			"Id": "ArtMesh131",
+			"Name": "Pendant_VR_Drop"
+		},
+		{
+			"Id": "ArtMesh132",
+			"Name": "Hip_VL_RedLoop"
+		},
+		{
+			"Id": "ArtMesh133",
+			"Name": "Hip_VR_RedLoop"
+		},
+		{
+			"Id": "ArtMesh134",
+			"Name": "ArmBand_VL"
+		},
+		{
+			"Id": "ArtMesh135",
+			"Name": "ArmBand_VR"
+		},
+		{
+			"Id": "ArtMesh136",
+			"Name": "Shoulder_VL_RedStrap"
+		},
+		{
+			"Id": "ArtMesh137",
+			"Name": "Shoulder_VR_RedStrap"
+		},
+		{
+			"Id": "ArtMesh138",
+			"Name": "SleevePocket_VL"
+		},
+		{
+			"Id": "ArtMesh139",
+			"Name": "SleevePocket_VR"
+		},
+		{
+			"Id": "ArtMesh140",
+			"Name": "SleeveFlap_VL"
+		},
+		{
+			"Id": "ArtMesh141",
+			"Name": "SleeveFlap_VR"
+		},
+		{
+			"Id": "ArtMesh142",
+			"Name": "Sleeve_VL_Tassel"
+		},
+		{
+			"Id": "ArtMesh143",
+			"Name": "Sleeve_VR_Tassel"
+		},
+		{
+			"Id": "ArtMesh144",
+			"Name": "Sleeve_VL_Ribbon"
+		},
+		{
+			"Id": "ArtMesh145",
+			"Name": "Sleeve_VR_Ribbon"
+		},
+		{
+			"Id": "ArtMesh146",
+			"Name": "Face"
+		},
+		{
+			"Id": "ArtMesh147",
+			"Name": "Neck"
+		},
+		{
+			"Id": "ArtMesh148",
+			"Name": "Brow_VL"
+		},
+		{
+			"Id": "ArtMesh149",
+			"Name": "Brow_VR"
+		},
+		{
+			"Id": "ArtMesh150",
+			"Name": "Mouth"
+		},
+		{
+			"Id": "ArtMesh151",
+			"Name": "Nose"
+		},
+		{
+			"Id": "ArtMesh152",
+			"Name": "HairClip_VL"
+		},
+		{
+			"Id": "ArtMesh153",
+			"Name": "HairClip_VR"
+		},
+		{
+			"Id": "ArtMesh154",
+			"Name": "Bow_VL"
+		},
+		{
+			"Id": "ArtMesh155",
+			"Name": "Bow_VR"
+		},
+		{
+			"Id": "ArtMesh156",
+			"Name": "Bow_Brooch"
+		},
+		{
+			"Id": "ArtMesh157",
+			"Name": "Hair_VL_Outer"
+		},
+		{
+			"Id": "ArtMesh158",
+			"Name": "Hair_VL_InnerBang"
+		},
+		{
+			"Id": "ArtMesh159",
+			"Name": "Hair_VL_CheekUpper"
+		},
+		{
+			"Id": "ArtMesh160",
+			"Name": "Hair_VL_CheekMiddle"
+		},
+		{
+			"Id": "ArtMesh161",
+			"Name": "Hair_VL_CheekLower"
+		},
+		{
+			"Id": "ArtMesh162",
+			"Name": "Hair_VR_Outer"
+		},
+		{
+			"Id": "ArtMesh163",
+			"Name": "Hair_VR_InnerBang"
+		},
+		{
+			"Id": "ArtMesh164",
+			"Name": "Hair_VR_CheekUpper"
+		},
+		{
+			"Id": "ArtMesh165",
+			"Name": "Hair_VR_CheekMiddle"
+		},
+		{
+			"Id": "ArtMesh166",
+			"Name": "Hair_VR_CheekLower"
+		},
+		{
+			"Id": "ArtMesh167",
+			"Name": "Forelock_Red"
+		},
+		{
+			"Id": "ArtMesh168",
+			"Name": "Forelock_Blue"
+		},
+		{
+			"Id": "ArtMesh169",
+			"Name": "Hair_Ahoge"
+		},
+		{
+			"Id": "ArtMesh170",
+			"Name": "Forelock_Blue_TipUpper"
+		},
+		{
+			"Id": "ArtMesh171",
+			"Name": "Forelock_Blue_TipMiddle"
+		},
+		{
+			"Id": "ArtMesh172",
+			"Name": "Forelock_Blue_TipLower"
+		},
+		{
+			"Id": "ArtMesh173",
+			"Name": "Eye_VL_Sclera"
+		},
+		{
+			"Id": "ArtMesh174",
+			"Name": "Eye_VL_Iris"
+		},
+		{
+			"Id": "ArtMesh175",
+			"Name": "Eye_VL_Iris_UpperShade"
+		},
+		{
+			"Id": "ArtMesh176",
+			"Name": "Eye_VL_Pupil"
+		},
+		{
+			"Id": "ArtMesh177",
+			"Name": "Eye_VL_Catchlight"
+		},
+		{
+			"Id": "ArtMesh178",
+			"Name": "Eye_VL_OuterCorner"
+		},
+		{
+			"Id": "ArtMesh179",
+			"Name": "Eye_VL_UpperLashes"
+		},
+		{
+			"Id": "ArtMesh180",
+			"Name": "Eye_VL_LowerLid"
+		},
+		{
+			"Id": "ArtMesh181",
+			"Name": "Eye_VL_UpperLid"
+		},
+		{
+			"Id": "ArtMesh182",
+			"Name": "Eye_VR_Sclera"
+		},
+		{
+			"Id": "ArtMesh183",
+			"Name": "Eye_VR_Iris"
+		},
+		{
+			"Id": "ArtMesh184",
+			"Name": "Eye_VR_Iris_UpperShade"
+		},
+		{
+			"Id": "ArtMesh185",
+			"Name": "Eye_VR_Pupil"
+		},
+		{
+			"Id": "ArtMesh186",
+			"Name": "Eye_VR_Catchlight"
+		},
+		{
+			"Id": "ArtMesh187",
+			"Name": "Eye_VR_LowerReflection"
+		},
+		{
+			"Id": "ArtMesh188",
+			"Name": "Eye_VR_OuterCorner"
+		},
+		{
+			"Id": "ArtMesh189",
+			"Name": "Eye_VR_UpperLashes"
+		},
+		{
+			"Id": "ArtMesh190",
+			"Name": "Eye_VR_LowerLid"
+		},
+		{
+			"Id": "ArtMesh191",
+			"Name": "Eye_VR_UpperLid"
+		}
+	]
+}
